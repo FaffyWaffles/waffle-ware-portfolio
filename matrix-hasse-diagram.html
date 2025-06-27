@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matrix Types Hasse Diagram - Waffle Ware</title>
+    <title>Matrix Classification Hasse Diagram - Waffle Ware</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
         body {
@@ -54,8 +54,50 @@
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
+        }
+        
+        .field-selector {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 8px;
+            border: 2px solid #4CAF50;
+        }
+        
+        .field-selector h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .field-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .field-button {
+            background: #e0e0e0;
+            color: #333;
+            border: 2px solid #ccc;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .field-button.active {
+            background: #4CAF50;
+            color: white;
+            border-color: #45a049;
+        }
+        
+        .field-button:hover {
+            transform: translateY(-1px);
         }
         
         .controls {
@@ -81,7 +123,7 @@
         
         #diagram {
             width: 100%;
-            height: 700px;
+            height: 800px;
             border: 2px solid #ddd;
             border-radius: 10px;
             background: #fafafa;
@@ -106,6 +148,10 @@
             stroke-opacity: 1;
         }
         
+        .links line.field-specific {
+            stroke-dasharray: 4,4;
+        }
+        
         .nodes circle {
             stroke: #333;
             stroke-width: 2;
@@ -116,14 +162,23 @@
             cursor: grabbing;
         }
         
-        .nodes circle.multiple-parents {
-            stroke: #ff6b6b;
+        .nodes circle.real-field {
+            stroke: #2196f3;
             stroke-width: 3;
-            stroke-dasharray: 3,3;
         }
         
-        .nodes circle.special-equivalence {
-            stroke: #ff6b6b;
+        .nodes circle.complex-field {
+            stroke: #9c27b0;
+            stroke-width: 3;
+        }
+        
+        .nodes circle.universal {
+            stroke: #4caf50;
+            stroke-width: 2;
+        }
+        
+        .nodes circle.special-case {
+            stroke: #ff9800;
             stroke-width: 4;
             stroke-dasharray: 5,5;
             animation: pulse 2s ease-in-out infinite alternate;
@@ -132,19 +187,6 @@
         @keyframes pulse {
             from { stroke-opacity: 0.5; }
             to { stroke-opacity: 1; }
-        }
-        
-        .nodes text.special-text {
-            font-weight: bold;
-            font-size: 10px;
-        }
-        
-        .nodes text.multiple-parents-text {
-            font-weight: 600;
-        }
-        
-        .nodes circle:active {
-            cursor: grabbing;
         }
         
         .nodes text {
@@ -156,9 +198,9 @@
             fill: black;
         }
         
-        .highlighted {
-            stroke: #ff6b6b !important;
-            stroke-width: 4 !important;
+        .nodes text.field-label {
+            font-size: 9px;
+            font-weight: bold;
         }
         
         .highlighted-node {
@@ -202,361 +244,543 @@
             color: #333;
             margin-bottom: 15px;
         }
+        
+        .field-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 12px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🧇 Matrix Types Hasse Diagram</h1>
-        <p>Interactive exploration of matrix classification hierarchies</p>
+        <h1>🧇 Field-Aware Matrix Classification</h1>
+        <p>Rigorous matrix type hierarchy over ℝ and ℂ</p>
         <a href="index.html" class="back-link">← Back to Portfolio</a>
     </div>
     
     <div class="container">
+        <div class="field-selector">
+            <h3>Field Context</h3>
+            <div class="field-buttons">
+                <div class="field-button active" data-field="universal">Universal Properties</div>
+                <div class="field-button" data-field="real">Real Field (ℝ)</div>
+                <div class="field-button" data-field="complex">Complex Field (ℂ)</div>
+                <div class="field-button" data-field="equivalences">Field Equivalences</div>
+            </div>
+            <div class="field-note" id="field-note">
+                Showing properties that hold over any field
+            </div>
+        </div>
+        
         <div class="controls">
             <button onclick="restartSimulation()">Reset Layout</button>
             <button onclick="toggleAnimation()">Toggle Animation</button>
             <button onclick="showOnlyConnections()">Show Only Direct Connections</button>
-            <button onclick="highlightMultipleInheritance()">Highlight Multiple Inheritance</button>
-            <button onclick="highlightNormalMatrices()">Highlight Normal Structure</button>
-            <button onclick="highlightPath('Identity')">Path to Identity</button>
-            <button onclick="highlightPath('Diagonal')">Path to Diagonal</button>
         </div>
         
         <svg id="diagram"></svg>
         
         <div class="legend">
             <div class="legend-item">
-                <span class="legend-color" style="background: #ffeb3b;"></span>
-                <span>General Categories</span>
+                <span class="legend-color" style="background: #4caf50; border: 2px solid #4caf50;"></span>
+                <span>Universal (Any Field)</span>
             </div>
             <div class="legend-item">
-                <span class="legend-color" style="background: #4caf50;"></span>
-                <span>Definite Matrices</span>
+                <span class="legend-color" style="background: #2196f3; border: 3px solid #2196f3;"></span>
+                <span>Real Field (ℝ) Specific</span>
             </div>
             <div class="legend-item">
-                <span class="legend-color" style="background: #2196f3;"></span>
-                <span>Special Structures</span>
+                <span class="legend-color" style="background: #9c27b0; border: 3px solid #9c27b0;"></span>
+                <span>Complex Field (ℂ) Specific</span>
             </div>
             <div class="legend-item">
-                <span class="legend-color" style="background: #9c27b0;"></span>
-                <span>Triangular Types</span>
+                <span class="legend-color" style="background: #ff9800; border: 4px dashed #ff9800;"></span>
+                <span>Special Cases</span>
             </div>
             <div class="legend-item">
-                <span class="legend-color" style="background: #ff5722;"></span>
-                <span>Diagonal Dominant</span>
+                <span style="display: inline-block; width: 20px; height: 2px; background: #999; border: 2px dashed #999; margin-right: 5px; vertical-align: middle;"></span>
+                <span>Field-Dependent Edge</span>
             </div>
         </div>
         
         <div class="description">
-            <h3>Mathematically Accurate Matrix Classification Hasse Diagram</h3>
+            <h3>Field-Aware Matrix Classification</h3>
             <p>
-                This interactive Hasse diagram represents the true hierarchical relationships between matrix types as a 
-                <strong>Directed Acyclic Graph (DAG)</strong> rather than a simple tree. Each node represents a matrix classification, 
-                and edges show subset relationships with <strong>multiple inheritance</strong> where mathematically appropriate.
+                This mathematically rigorous Hasse diagram explicitly handles the <strong>field dependency</strong> of matrix properties. 
+                Many relationships depend on whether matrices are over the real field ℝ or complex field ℂ.
             </p>
             <p>
-                <strong>Key Mathematical Corrections:</strong> 
-                • Unitary and Orthogonal matrices are properly shown as Normal (AA* = A*A) 
-                • Diagonal matrices have multiple parents: Symmetric ∩ Upper Triangular ∩ Lower Triangular
-                • Definite matrices are correctly placed only under Hermitian 
-                • Skew-Symmetric and Skew-Hermitian are Normal 
-                • Reflection matrices are Orthogonal ∩ Involutory 
-                • Shear matrices are Upper Triangular
+                <strong>Key Distinctions:</strong> 
+                • Over ℝ: Hermitian ≡ Symmetric, Unitary ≡ Orthogonal, Skew-Hermitian ≡ Skew-Symmetric
+                • Over ℂ: These are distinct properties with different inclusion relationships
+                • Universal: Properties like Square, Triangular, Diagonal hold over any field
+                • Special Cases: Zero and Identity have universal properties but field-specific characterizations
             </p>
             <p>
-                <strong>Visual Indicators:</strong> Nodes with dashed borders have multiple inheritance (satisfy multiple independent conditions). 
-                The special three-way equivalence node shows where Symmetric ∩ Orthogonal ≡ Involutory. This DAG structure 
-                accurately represents the mathematical lattice of matrix properties.
-            </p>
-            <p>
-                <strong>How to use:</strong> Hover over nodes to see direct connections, use "Highlight Multiple Inheritance" to see 
-                nodes with multiple parents, "Highlight Normal Structure" shows the key role of normal matrices, or trace 
-                inheritance paths to see the rich mathematical relationships.
+                <strong>Use the field selector</strong> to explore how relationships change between real and complex contexts. 
+                This reveals the deep mathematical structure and avoids common misconceptions about matrix properties.
             </p>
         </div>
     </div>
 
     <script>
-        // Define the matrix types with multiple parents (DAG structure)
-        const matrixTypes = {
-            "Rectangular": { color: "#ffeb3b", parents: [] },
-            "Square": { color: "#ffeb3b", parents: ["Rectangular"] },
-            "Vectors": { color: "#4caf50", parents: ["Rectangular"] },
-            "Row Matrix": { color: "#ffeb3b", parents: ["Vectors"] },
-            "Column Matrix": { color: "#ffeb3b", parents: ["Vectors"] },
-            
-            // Normal matrices - key structural position
-            "Normal": { color: "#e8f5e8", parents: ["Square"] },
-            
-            // Under Normal: Symmetric & Hermitian
-            "Symmetric": { color: "#4caf50", parents: ["Normal"] },
-            "Hermitian": { color: "#4caf50", parents: ["Normal"] },
-            
-            // Under Normal: Unitary & Orthogonal (FIXED)
-            "Unitary": { color: "#2196f3", parents: ["Normal"] },
-            "Orthogonal": { color: "#2196f3", parents: ["Normal"] },
-            "Special Unitary": { color: "#2196f3", parents: ["Unitary"] },
-            "Special Orthogonal": { color: "#2196f3", parents: ["Orthogonal"] },
-            "Rotation": { color: "#2196f3", parents: ["Special Orthogonal"] },
-            
-            // Under Normal: Skew matrices (FIXED)
-            "Skew-Symmetric": { color: "#333", parents: ["Normal"] },
-            "Skew-Hermitian": { color: "#333", parents: ["Normal"] },
-            
-            // Involutory matrices
-            "Involutory": { color: "#ff9800", parents: ["Square"] },
-            
-            // Triangular matrices
-            "Triangular": { color: "#9c27b0", parents: ["Square"] },
-            "Upper Triangular": { color: "#9c27b0", parents: ["Triangular"] },
-            "Lower Triangular": { color: "#9c27b0", parents: ["Triangular"] },
-            
-            // Diagonal matrices - multiple parents (FIXED)
-            "Diagonal": { color: "#2196f3", parents: ["Symmetric", "Upper Triangular", "Lower Triangular"] },
-            "Scalar": { color: "#2196f3", parents: ["Diagonal"] },
-            "Identity": { color: "#2196f3", parents: ["Scalar"] },
-            "Zero": { color: "#333", parents: ["Scalar", "Skew-Symmetric"] },
-            
-            // Definite matrices - only under Hermitian (FIXED)
-            "Positive Definite": { color: "#4caf50", parents: ["Hermitian"] },
-            "Positive Semidefinite": { color: "#4caf50", parents: ["Hermitian"] },
-            "Negative Definite": { color: "#f44336", parents: ["Hermitian"] },
-            "Negative Semidefinite": { color: "#f44336", parents: ["Hermitian"] },
-            
-            // Shear matrices - under triangular (FIXED)
-            "Shear": { color: "#795548", parents: ["Upper Triangular"] },
-            
-            // Reflection matrices - multiple parents (FIXED)
-            "Reflection": { color: "#e91e63", parents: ["Orthogonal", "Involutory"] },
-            
-            // Special three-way equivalence
-            "Symmetric-Orthogonal-Involutory": { 
-                color: "#ff9800", 
-                parents: ["Symmetric", "Orthogonal", "Involutory"],
-                special: true 
+        // Field-aware matrix classification with explicit real/complex distinctions
+        const matrixTypesFieldAware = {
+            // Universal properties (hold over any field)
+            universal: {
+                "Rectangular": { color: "#ffeb3b", parents: [], field: "universal" },
+                "Square": { color: "#ffeb3b", parents: ["Rectangular"], field: "universal" },
+                "Vectors": { color: "#4caf50", parents: ["Rectangular"], field: "universal" },
+                "Row Matrix": { color: "#ffeb3b", parents: ["Vectors"], field: "universal" },
+                "Column Matrix": { color: "#ffeb3b", parents: ["Vectors"], field: "universal" },
+                
+                // Triangular (universal)
+                "Triangular": { color: "#9c27b0", parents: ["Square"], field: "universal" },
+                "Upper Triangular": { color: "#9c27b0", parents: ["Triangular"], field: "universal" },
+                "Lower Triangular": { color: "#9c27b0", parents: ["Triangular"], field: "universal" },
+                "Strict Upper Triangular": { color: "#9c27b0", parents: ["Upper Triangular"], field: "universal" },
+                "Strict Lower Triangular": { color: "#9c27b0", parents: ["Lower Triangular"], field: "universal" },
+                
+                // Diagonal hierarchy (universal)
+                "Diagonal": { color: "#2196f3", parents: ["Upper Triangular", "Lower Triangular"], field: "universal" },
+                "Scalar": { color: "#2196f3", parents: ["Diagonal"], field: "universal" },
+                
+                // Involutory (A² = I, universal)
+                "Involutory": { color: "#ff9800", parents: ["Square"], field: "universal" },
+                
+                // Special universal matrices
+                "Zero": { 
+                    color: "#333", 
+                    parents: ["Scalar", "Strict Upper Triangular", "Strict Lower Triangular"], 
+                    field: "universal",
+                    special: true 
+                },
+                "Identity": { 
+                    color: "#2196f3", 
+                    parents: ["Scalar", "Involutory"], 
+                    field: "universal",
+                    special: true 
+                },
+                
+                // Matrix families (universal)
+                "Z-Matrix": { color: "#9c27b0", parents: ["Square"], field: "universal" },
+                "L-Matrix": { color: "#9c27b0", parents: ["Z-Matrix"], field: "universal" },
+                "H-Matrix": { color: "#f44336", parents: ["Square"], field: "universal" },
+                "M-Matrix": { color: "#4caf50", parents: ["L-Matrix", "H-Matrix"], field: "universal" },
+                
+                // Other universal properties
+                "Weakly Diagonally Dominant": { color: "#ff5722", parents: ["Square"], field: "universal" },
+                "Strictly Diagonally Dominant": { color: "#ff5722", parents: ["Weakly Diagonally Dominant"], field: "universal" },
+                "Uniform": { color: "#607d8b", parents: ["Square"], field: "universal" },
+                "All-Ones": { color: "#607d8b", parents: ["Uniform"], field: "universal" },
+                "Scaled Elementary": { color: "#e91e63", parents: ["Square"], field: "universal" },
+                "Shear": { color: "#795548", parents: ["Strict Upper Triangular"], field: "universal" }
             },
             
-            // Matrix families
-            "Z-Matrix": { color: "#9c27b0", parents: ["Square"] },
-            "L-Matrix": { color: "#9c27b0", parents: ["Z-Matrix"] },
-            "M-Matrix": { color: "#4caf50", parents: ["L-Matrix", "H-Matrix"] },
-            "H-Matrix": { color: "#f44336", parents: ["Square"] },
+            // Real field specific (ℝ)
+            real: {
+                // Normal matrices over ℝ
+                "Real Normal": { color: "#e8f5e8", parents: ["Square"], field: "real" },
+                
+                // Real field properties
+                "Symmetric": { color: "#4caf50", parents: ["Real Normal"], field: "real" },
+                "Skew-Symmetric": { color: "#333", parents: ["Real Normal"], field: "real" },
+                "Orthogonal": { color: "#2196f3", parents: ["Real Normal"], field: "real" },
+                "Special Orthogonal": { color: "#2196f3", parents: ["Orthogonal"], field: "real" },
+                "Rotation": { color: "#2196f3", parents: ["Special Orthogonal"], field: "real" },
+                
+                // Real definite matrices
+                "Real Positive Definite": { color: "#4caf50", parents: ["Symmetric"], field: "real" },
+                "Real Positive Semidefinite": { color: "#4caf50", parents: ["Symmetric"], field: "real" },
+                "Real Negative Definite": { color: "#f44336", parents: ["Symmetric"], field: "real" },
+                "Real Negative Semidefinite": { color: "#f44336", parents: ["Symmetric"], field: "real" },
+                
+                // Real special combinations
+                "Real Reflection": { 
+                    color: "#e91e63", 
+                    parents: ["Symmetric", "Orthogonal", "Involutory"], 
+                    field: "real" 
+                },
+                
+                // Real diagonal extends universal diagonal
+                "Real Diagonal": { 
+                    color: "#2196f3", 
+                    parents: ["Diagonal", "Symmetric"], 
+                    field: "real" 
+                },
+                "Real Identity": { 
+                    color: "#2196f3", 
+                    parents: ["Identity", "Real Diagonal", "Orthogonal"], 
+                    field: "real",
+                    special: true 
+                },
+                "Real Zero": { 
+                    color: "#333", 
+                    parents: ["Zero", "Skew-Symmetric"], 
+                    field: "real",
+                    special: true 
+                }
+            },
             
-            // Diagonally dominant
-            "Weakly Diagonally Dominant": { color: "#ff5722", parents: ["Square"] },
-            "Strictly Diagonally Dominant": { color: "#ff5722", parents: ["Weakly Diagonally Dominant"] },
-            
-            // Uniform matrices
-            "Uniform": { color: "#607d8b", parents: ["Square"] },
-            "All-Ones": { color: "#607d8b", parents: ["Uniform"] },
-            
-            // Elementary matrices  
-            "Scaled Elementary": { color: "#e91e63", parents: ["Square"] }
+            // Complex field specific (ℂ)
+            complex: {
+                // Normal matrices over ℂ
+                "Complex Normal": { color: "#e8f5e8", parents: ["Square"], field: "complex" },
+                
+                // Complex field properties
+                "Hermitian": { color: "#4caf50", parents: ["Complex Normal"], field: "complex" },
+                "Skew-Hermitian": { color: "#333", parents: ["Complex Normal"], field: "complex" },
+                "Unitary": { color: "#2196f3", parents: ["Complex Normal"], field: "complex" },
+                "Special Unitary": { color: "#2196f3", parents: ["Unitary"], field: "complex" },
+                
+                // Complex definite matrices
+                "Complex Positive Definite": { color: "#4caf50", parents: ["Hermitian"], field: "complex" },
+                "Complex Positive Semidefinite": { color: "#4caf50", parents: ["Hermitian"], field: "complex" },
+                "Complex Negative Definite": { color: "#f44336", parents: ["Hermitian"], field: "complex" },
+                "Complex Negative Semidefinite": { color: "#f44336", parents: ["Hermitian"], field: "complex" },
+                
+                // Complex diagonal extends universal diagonal  
+                "Complex Diagonal": { 
+                    color: "#2196f3", 
+                    parents: ["Diagonal", "Hermitian"], 
+                    field: "complex" 
+                },
+                "Complex Identity": { 
+                    color: "#2196f3", 
+                    parents: ["Identity", "Complex Diagonal", "Unitary"], 
+                    field: "complex",
+                    special: true 
+                },
+                "Complex Zero": { 
+                    color: "#333", 
+                    parents: ["Zero", "Skew-Hermitian"], 
+                    field: "complex",
+                    special: true 
+                }
+            }
         };
 
-        // Convert DAG structure to nodes and links
-        function dagToGraph(matrixTypes) {
+        // Current field view
+        let currentField = "universal";
+        let showingConnectionsOnly = false;
+        
+        // Generate field-specific graph
+        function generateFieldGraph(field) {
             const nodes = [];
             const links = [];
             
-            // Create nodes
-            for (const [name, info] of Object.entries(matrixTypes)) {
+            // Add universal nodes always
+            for (const [name, info] of Object.entries(matrixTypesFieldAware.universal)) {
                 nodes.push({
                     id: name,
                     name: name,
                     color: info.color,
+                    field: info.field,
                     special: info.special || false,
                     parents: info.parents || []
                 });
             }
             
-            // Create links from parent relationships
-            for (const [childName, info] of Object.entries(matrixTypes)) {
+            // Add field-specific nodes if requested
+            if (field !== "universal") {
+                const fieldData = matrixTypesFieldAware[field];
+                if (fieldData) {
+                    for (const [name, info] of Object.entries(fieldData)) {
+                        nodes.push({
+                            id: name,
+                            name: name,
+                            color: info.color,
+                            field: info.field,
+                            special: info.special || false,
+                            parents: info.parents || []
+                        });
+                    }
+                }
+            }
+            
+            // Generate links from parent relationships
+            const allTypes = { ...matrixTypesFieldAware.universal };
+            if (field !== "universal" && matrixTypesFieldAware[field]) {
+                Object.assign(allTypes, matrixTypesFieldAware[field]);
+            }
+            
+            for (const [childName, info] of Object.entries(allTypes)) {
                 for (const parentName of info.parents) {
-                    links.push({
-                        source: parentName,
-                        target: childName
-                    });
+                    // Only add link if both nodes exist in current view
+                    if (nodes.some(n => n.id === parentName) && nodes.some(n => n.id === childName)) {
+                        links.push({
+                            source: parentName,
+                            target: childName,
+                            fieldSpecific: (info.field !== "universal" || 
+                                           (allTypes[parentName] && allTypes[parentName].field !== "universal"))
+                        });
+                    }
                 }
             }
             
             return { nodes, links };
         }
 
-        // Set up the visualization using the clean D3 pattern
-        const width = 1300;
-        const height = 700;
+        // Set up the visualization
+        const width = 1500;
+        const height = 800;
 
         const svg = d3.select("#diagram")
             .attr("width", width)
             .attr("height", height)
             .attr("viewBox", [0, 0, width, height]);
 
-        // Create a container group for zoom
         const container = svg.append("g");
-
-        // Generate graph data from DAG structure
-        const { nodes, links } = dagToGraph(matrixTypes);
         
-        // Copy for simulation (prevents mutation issues)
-        const graphLinks = links.map(d => ({...d}));
-        const graphNodes = nodes.map(d => ({...d}));
+        let simulation, link, node, graphNodes, graphLinks;
+        
+        function initializeGraph(field = "universal") {
+            // Clear existing
+            container.selectAll("*").remove();
+            
+            // Generate new graph data
+            const { nodes, links } = generateFieldGraph(field);
+            graphNodes = nodes.map(d => ({...d}));
+            graphLinks = links.map(d => ({...d}));
 
-        // Create simulation with better spacing
-        const simulation = d3.forceSimulation(graphNodes)
-            .force("link", d3.forceLink(graphLinks).id(d => d.id).distance(100).strength(0.7))
-            .force("charge", d3.forceManyBody().strength(-800)) // Much stronger repulsion
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(35)) // Larger collision radius
-            .force("x", d3.forceX(width / 2).strength(0.05)) // Gentle centering
-            .force("y", d3.forceY(height / 2).strength(0.05));
+            // Create simulation
+            simulation = d3.forceSimulation(graphNodes)
+                .force("link", d3.forceLink(graphLinks).id(d => d.id).distance(100).strength(0.6))
+                .force("charge", d3.forceManyBody().strength(-600))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(35));
 
-        // Add links to container
-        const link = container.append("g")
-            .attr("class", "links")
-            .selectAll("line")
-            .data(graphLinks)
-            .join("line");
+            // Add links
+            link = container.append("g")
+                .attr("class", "links")
+                .selectAll("line")
+                .data(graphLinks)
+                .join("line")
+                .classed("field-specific", d => d.fieldSpecific);
 
-        // Add node groups to container
-        const node = container.append("g")
-            .attr("class", "nodes")
-            .selectAll("g")
-            .data(graphNodes)
-            .join("g");
+            // Add nodes
+            node = container.append("g")
+                .attr("class", "nodes")
+                .selectAll("g")
+                .data(graphNodes)
+                .join("g");
 
-        // Add circles to nodes with proper styling
-        node.append("circle")
-            .attr("r", 20)
-            .attr("fill", d => d.color)
-            .classed("special-equivalence", d => d.special)
-            .classed("multiple-parents", d => d.parents.length > 1 && !d.special);
+            // Add circles with field-specific styling
+            node.append("circle")
+                .attr("r", 22)
+                .attr("fill", d => d.color)
+                .classed("universal", d => d.field === "universal")
+                .classed("real-field", d => d.field === "real")
+                .classed("complex-field", d => d.field === "complex")
+                .classed("special-case", d => d.special);
 
-        // Add text to nodes with improved labeling
-        node.append("text")
-            .classed("special-text", d => d.special)
-            .classed("multiple-parents-text", d => d.parents.length > 1)
-            .text(d => {
-                // Special handling for the three-way equivalence node
-                if (d.special) {
-                    return "Sym⊕Orth⊕Inv";
-                }
-                // Shortened names for better display
-                const shortNames = {
-                    "Symmetric-Orthogonal-Involutory": "Sym⊕Orth⊕Inv",
-                    "Upper Triangular": "Upper Tri",
-                    "Lower Triangular": "Lower Tri", 
-                    "Positive Definite": "Pos Def",
-                    "Negative Definite": "Neg Def",
-                    "Positive Semidefinite": "Pos SemiDef",
-                    "Negative Semidefinite": "Neg SemiDef",
-                    "Skew-Symmetric": "Skew-Sym",
-                    "Skew-Hermitian": "Skew-Herm",
-                    "Special Unitary": "Sp Unitary",
-                    "Special Orthogonal": "Sp Orthog",
-                    "Strictly Diagonally Dominant": "Strict DiagDom",
-                    "Weakly Diagonally Dominant": "Weak DiagDom",
-                    "Scaled Elementary": "Scaled Elem"
-                };
-                
-                return shortNames[d.name] || (d.name.length > 12 ? d.name.substring(0, 10) + "..." : d.name);
-            })
-            .each(function(d) {
-                // Handle text wrapping for longer names (but not for special nodes)
-                if (!d.special && !d.name.includes("Triangular")) {
-                    const text = d3.select(this);
-                    const words = d.name.split(/\s+/);
-                    if (words.length > 1 && d.name.length > 10) {
-                        text.text('');
-                        text.append('tspan')
-                            .attr('x', 0)
-                            .attr('dy', '-0.2em')
-                            .text(words[0]);
-                        text.append('tspan')
-                            .attr('x', 0)
-                            .attr('dy', '1.2em')
-                            .text(words.slice(1).join(' ').substring(0, 8));
+            // Add text labels
+            node.append("text")
+                .text(d => {
+                    const shortNames = {
+                        "Real Positive Definite": "R PD",
+                        "Real Negative Definite": "R ND", 
+                        "Real Positive Semidefinite": "R PSD",
+                        "Real Negative Semidefinite": "R NSD",
+                        "Complex Positive Definite": "C PD",
+                        "Complex Negative Definite": "C ND",
+                        "Complex Positive Semidefinite": "C PSD", 
+                        "Complex Negative Semidefinite": "C NSD",
+                        "Upper Triangular": "Upper Tri",
+                        "Lower Triangular": "Lower Tri",
+                        "Strict Upper Triangular": "Strict Up",
+                        "Strict Lower Triangular": "Strict Low",
+                        "Skew-Symmetric": "Skew-Sym",
+                        "Skew-Hermitian": "Skew-Herm",
+                        "Special Orthogonal": "SO",
+                        "Special Unitary": "SU",
+                        "Real Normal": "Normal(ℝ)",
+                        "Complex Normal": "Normal(ℂ)",
+                        "Real Diagonal": "Diag(ℝ)", 
+                        "Complex Diagonal": "Diag(ℂ)",
+                        "Real Identity": "I(ℝ)",
+                        "Complex Identity": "I(ℂ)",
+                        "Real Zero": "0(ℝ)",
+                        "Complex Zero": "0(ℂ)",
+                        "Real Reflection": "Refl(ℝ)",
+                        "Weakly Diagonally Dominant": "Weak DD",
+                        "Strictly Diagonally Dominant": "Strict DD"
+                    };
+                    return shortNames[d.name] || d.name;
+                })
+                .style("font-size", "10px");
+
+            // Add field indicator
+            node.filter(d => d.field !== "universal")
+                .append("text")
+                .attr("y", 15)
+                .attr("class", "field-label")
+                .text(d => d.field === "real" ? "ℝ" : "ℂ")
+                .style("fill", d => d.field === "real" ? "#2196f3" : "#9c27b0");
+
+            // Add enhanced tooltips
+            node.append("title")
+                .text(d => {
+                    let tooltip = `${d.name} (${d.field === "universal" ? "Any Field" : d.field === "real" ? "Real Field ℝ" : "Complex Field ℂ"})`;
+                    
+                    if (d.name === "Zero") {
+                        tooltip += "\n★ Universal matrix: satisfies ALL properties";
+                    } else if (d.name === "Identity") {
+                        tooltip += "\n★ I² = I, orthogonal/unitary, diagonal";
+                    } else if (d.field === "real" && d.field !== "universal") {
+                        tooltip += "\n★ Real field specific property";
+                    } else if (d.field === "complex") {
+                        tooltip += "\n★ Complex field specific property";
                     }
+                    
+                    if (d.parents.length > 0) {
+                        tooltip += `\n\nParents: ${d.parents.join(", ")}`;
+                    }
+                    
+                    return tooltip;
+                });
+
+            // Add drag and hover behavior
+            addInteractivity();
+            
+            // Start simulation
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+        }
+        
+        function addInteractivity() {
+            // Hover behavior showing path to Rectangular
+            node.on("mouseover", function(event, d) {
+                d3.select(this).select("circle").classed("highlighted-node", true);
+                
+                if (showingConnectionsOnly) {
+                    // In connection-only mode, show only direct connections
+                    link.style("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.05);
+                    node.select("circle").style("opacity", n => {
+                        if (n.id === d.id) return 1;
+                        const isConnected = graphLinks.some(l => 
+                            (l.source.id === d.id && l.target.id === n.id) || 
+                            (l.target.id === d.id && l.source.id === n.id)
+                        );
+                        return isConnected ? 1 : 0.1;
+                    });
+                    node.select("text").style("opacity", n => {
+                        if (n.id === d.id) return 1;
+                        const isConnected = graphLinks.some(l => 
+                            (l.source.id === d.id && l.target.id === n.id) || 
+                            (l.target.id === d.id && l.source.id === n.id)
+                        );
+                        return isConnected ? 1 : 0.1;
+                    });
+                } else {
+                    // Normal mode: show full path(s) to Rectangular
+                    const paths = findAllPathsToNode(d.id);
+                    const allPathNodes = new Set();
+                    paths.forEach(path => path.forEach(nodeId => allPathNodes.add(nodeId)));
+                    
+                    node.select("circle").style("opacity", n => allPathNodes.has(n.id) ? 1 : 0.2);
+                    node.select("text").style("opacity", n => allPathNodes.has(n.id) ? 1 : 0.2);
+                    
+                    link.style("opacity", l => {
+                        const isInPath = paths.some(path => {
+                            const sourceIndex = path.indexOf(l.source.id);
+                            const targetIndex = path.indexOf(l.target.id);
+                            return sourceIndex !== -1 && targetIndex === sourceIndex + 1;
+                        });
+                        return isInPath ? 1 : 0.1;
+                    }).classed("highlighted", l => {
+                        return paths.some(path => {
+                            const sourceIndex = path.indexOf(l.source.id);
+                            const targetIndex = path.indexOf(l.target.id);
+                            return sourceIndex !== -1 && targetIndex === sourceIndex + 1;
+                        });
+                    });
+                    
+                    // Show lineage
+                    if (paths.length > 0 && d.id !== "Rectangular") {
+                        const shortestPath = paths.reduce((shortest, current) => 
+                            current.length < shortest.length ? current : shortest
+                        );
+                        
+                        svg.select("#hover-explanation").remove();
+                        svg.append("text")
+                            .attr("id", "hover-explanation")
+                            .attr("x", width / 2)
+                            .attr("y", height - 30)
+                            .attr("text-anchor", "middle")
+                            .style("font-size", "12px")
+                            .style("font-weight", "bold")
+                            .style("fill", "#2196f3")
+                            .text(`${d.field === "universal" ? "Universal" : d.field === "real" ? "ℝ" : "ℂ"}: ${shortestPath.join(" → ")}`)
+                            .append("tspan")
+                            .attr("x", width / 2)
+                            .attr("dy", "1.2em")
+                            .style("font-size", "10px")
+                            .style("font-weight", "normal")
+                            .text(paths.length > 1 ? `(${paths.length} inheritance paths)` : "");
+                    }
+                }
+            })
+            .on("mouseout", function(event, d) {
+                if (!showingConnectionsOnly) {
+                    // Reset styling in normal mode
+                    d3.select(this).select("circle").classed("highlighted-node", false);
+                    link.classed("highlighted", false).style("opacity", 1);
+                    node.select("circle").style("opacity", 1);
+                    node.select("text").style("opacity", 1);
+                    svg.select("#hover-explanation").remove();
+                } else {
+                    // In connection-only mode, return to faded state
+                    d3.select(this).select("circle").classed("highlighted-node", false);
+                    link.style("opacity", 0.1);
+                    node.select("circle").style("opacity", 0.3);
+                    node.select("text").style("opacity", 0.3);
                 }
             });
 
-        // Add tooltips
-        node.append("title")
-            .text(d => d.name);
-
-        // Add hover effects with better visual feedback
-        node.on("mouseover", function(event, d) {
-            // Highlight the hovered node
-            d3.select(this).select("circle").classed("highlighted-node", true);
+            // Add drag behavior
+            node.call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+        }
+        
+        function findAllPathsToNode(targetId) {
+            const paths = [];
             
-            if (showingConnectionsOnly) {
-                // In connection-only mode, show only direct connections
-                link.style("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.05);
-                node.select("circle").style("opacity", n => {
-                    if (n.id === d.id) return 1;
-                    const isConnected = graphLinks.some(l => 
-                        (l.source.id === d.id && l.target.id === n.id) || 
-                        (l.target.id === d.id && l.source.id === n.id)
-                    );
-                    return isConnected ? 1 : 0.1;
-                });
-                node.select("text").style("opacity", n => {
-                    if (n.id === d.id) return 1;
-                    const isConnected = graphLinks.some(l => 
-                        (l.source.id === d.id && l.target.id === n.id) || 
-                        (l.target.id === d.id && l.source.id === n.id)
-                    );
-                    return isConnected ? 1 : 0.1;
-                });
-            } else {
-                // Normal mode
-                link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id)
-                    .style("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.2);
+            function dfs(currentId, currentPath) {
+                currentPath.push(currentId);
                 
-                node.select("circle").style("opacity", n => {
-                    if (n.id === d.id) return 1;
-                    const isConnected = graphLinks.some(l => 
-                        (l.source.id === d.id && l.target.id === n.id) || 
-                        (l.target.id === d.id && l.source.id === n.id)
-                    );
-                    return isConnected ? 1 : 0.4;
-                });
+                if (currentId === targetId) {
+                    paths.push([...currentPath]);
+                } else {
+                    const children = graphLinks.filter(l => l.source.id === currentId);
+                    for (const child of children) {
+                        if (!currentPath.includes(child.target.id)) {
+                            dfs(child.target.id, [...currentPath]);
+                        }
+                    }
+                }
             }
-        })
-        .on("mouseout", function(event, d) {
-            if (!showingConnectionsOnly) {
-                // Reset styling in normal mode
-                d3.select(this).select("circle").classed("highlighted-node", false);
-                link.classed("highlighted", false).style("opacity", 1);
-                node.select("circle").style("opacity", 1);
-            } else {
-                // In connection-only mode, return to faded state
-                d3.select(this).select("circle").classed("highlighted-node", false);
-                link.style("opacity", 0.1);
-                node.select("circle").style("opacity", 0.3);
-                node.select("text").style("opacity", 0.3);
-            }
-        });
+            
+            dfs("Rectangular", []);
+            return paths;
+        }
 
-        // Add drag behavior (clean D3 pattern)
-        node.call(d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended));
-
-        // Tick function (clean D3 pattern)
-        simulation.on("tick", () => {
-            link
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            node
-                .attr("transform", d => `translate(${d.x},${d.y})`);
-        });
-
-        // Drag functions (clean D3 pattern)
+        // Drag functions
         function dragstarted(event) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             event.subject.fx = event.subject.x;
@@ -574,31 +798,44 @@
             event.subject.fy = null;
         }
 
-        // Control functions
-        let showingConnectionsOnly = false;
-        
-        function highlightMultipleInheritance() {
-            // Clear previous highlights
-            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
-            link.classed("highlighted", false).style("opacity", 1);
-            node.select("text").style("opacity", 1);
-            
-            // Find nodes with multiple parents
-            const multiParentNodes = graphNodes.filter(n => n.parents.length > 1);
-            const multiParentIds = multiParentNodes.map(n => n.id);
-            
-            // Highlight nodes with multiple inheritance
-            node.select("circle").style("opacity", d => multiParentIds.includes(d.id) ? 1 : 0.2);
-            node.select("text").style("opacity", d => multiParentIds.includes(d.id) ? 1 : 0.2);
-            
-            // Highlight all links to/from multiple inheritance nodes
-            link.style("opacity", l => {
-                return (multiParentIds.includes(l.target.id) || multiParentIds.includes(l.source.id)) ? 1 : 0.1;
-            }).classed("highlighted", l => {
-                return multiParentIds.includes(l.target.id) || multiParentIds.includes(l.source.id);
+        // Field selector functionality
+        document.querySelectorAll('.field-button').forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active button
+                document.querySelectorAll('.field-button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update field
+                currentField = this.dataset.field;
+                
+                // Update note
+                const notes = {
+                    universal: "Showing properties that hold over any field (ℝ, ℂ, or others)",
+                    real: "Showing real field (ℝ) specific properties and their relationships",
+                    complex: "Showing complex field (ℂ) specific properties and their relationships", 
+                    equivalences: "Showing field equivalences: Over ℝ, Hermitian ≡ Symmetric, Unitary ≡ Orthogonal"
+                };
+                document.getElementById('field-note').textContent = notes[currentField];
+                
+                // Regenerate graph
+                if (currentField === "equivalences") {
+                    showFieldEquivalences();
+                } else {
+                    initializeGraph(currentField);
+                }
             });
-            
-            // Add explanation text
+        });
+        
+        function showFieldEquivalences() {
+            // Special view showing field equivalences
+            initializeGraph("real");
+            // Add visual indicators for equivalences
+            setTimeout(() => {
+                highlightFieldEquivalences();
+            }, 1000);
+        }
+        
+        function highlightFieldEquivalences() {
             svg.select("#explanation-text").remove();
             svg.append("text")
                 .attr("id", "explanation-text")
@@ -607,79 +844,62 @@
                 .attr("text-anchor", "middle")
                 .style("font-size", "14px")
                 .style("font-weight", "bold")
-                .style("fill", "#ff6b6b")
-                .text("Multiple Inheritance Nodes: These matrix types satisfy multiple independent conditions")
+                .style("fill", "#9c27b0")
+                .text("Field Equivalences: Over ℝ these concepts coincide")
                 .append("tspan")
                 .attr("x", width / 2)
                 .attr("dy", "1.2em")
                 .style("font-size", "12px")
                 .style("font-weight", "normal")
-                .text("Examples: Diagonal (Symmetric ∩ Upper ∩ Lower), Reflection (Orthogonal ∩ Involutory), Zero (Scalar ∩ Skew-Symmetric)");
+                .text("Hermitian ≡ Symmetric | Unitary ≡ Orthogonal | Skew-Hermitian ≡ Skew-Symmetric");
         }
-        
-        function highlightNormalMatrices() {
-            // Clear previous highlights
-            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
-            link.classed("highlighted", false).style("opacity", 1);
-            node.select("text").style("opacity", 1);
-            
-            // Find Normal node and all its descendants
-            function findDescendants(nodeId, visited = new Set()) {
-                if (visited.has(nodeId)) return [];
-                visited.add(nodeId);
-                
-                const descendants = [nodeId];
-                const children = graphLinks.filter(l => l.source.id === nodeId);
-                
-                for (const child of children) {
-                    descendants.push(...findDescendants(child.target.id, visited));
-                }
-                
-                return descendants;
+
+        // Control functions
+        function restartSimulation() {
+            if (simulation) {
+                graphNodes.forEach(d => {
+                    d.fx = null;
+                    d.fy = null;
+                });
+                simulation.alpha(1).restart();
             }
             
-            const normalDescendants = findDescendants("Normal");
+            // Clear any UI states and explanations
+            svg.selectAll("#explanation-text, #hover-explanation, #instruction-text").remove();
+            showingConnectionsOnly = false;
             
-            // Highlight Normal and all its descendants
-            node.select("circle").style("opacity", d => normalDescendants.includes(d.id) ? 1 : 0.2);
-            node.select("text").style("opacity", d => normalDescendants.includes(d.id) ? 1 : 0.2);
-            
-            // Highlight links within the Normal family
-            link.style("opacity", l => {
-                return (normalDescendants.includes(l.source.id) && normalDescendants.includes(l.target.id)) ? 1 : 0.1;
-            }).classed("highlighted", l => {
-                return normalDescendants.includes(l.source.id) && normalDescendants.includes(l.target.id);
-            });
-            
-            // Add explanation text
-            svg.select("#explanation-text").remove();
-            svg.append("text")
-                .attr("id", "explanation-text")
-                .attr("x", width / 2)
-                .attr("y", 30)
-                .attr("text-anchor", "middle")
-                .style("font-size", "14px")
-                .style("font-weight", "bold")
-                .style("fill", "#4caf50")
-                .text("Normal Matrices: AA* = A*A (commute with conjugate transpose)")
-                .append("tspan")
-                .attr("x", width / 2)
-                .attr("dy", "1.2em")
-                .style("font-size", "12px")
-                .style("font-weight", "normal")
-                .text("Includes: Symmetric, Hermitian, Unitary, Orthogonal, Skew-Symmetric, Skew-Hermitian, and all their descendants");
+            // Reset all visual states
+            if (node && link) {
+                node.select("circle").classed("highlighted-node", false).style("opacity", 1);
+                node.select("text").style("opacity", 1);
+                link.classed("highlighted", false).style("opacity", 1);
+            }
         }
-        
+
+        let animationRunning = true;
+        function toggleAnimation() {
+            if (simulation) {
+                if (animationRunning) {
+                    simulation.stop();
+                    animationRunning = false;
+                } else {
+                    simulation.restart();
+                    animationRunning = true;
+                }
+            }
+        }
+
         function showOnlyConnections() {
             showingConnectionsOnly = !showingConnectionsOnly;
             
             if (showingConnectionsOnly) {
-                // Make all links very faint
+                // Fade all elements
                 link.style("opacity", 0.1);
                 node.select("circle").style("opacity", 0.3);
                 node.select("text").style("opacity", 0.3);
                 
-                // Add instruction text
+                // Add instruction
+                svg.select("#instruction-text").remove();
                 svg.append("text")
                     .attr("id", "instruction-text")
                     .attr("x", width / 2)
@@ -689,126 +909,13 @@
                     .style("font-weight", "bold")
                     .style("fill", "#333")
                     .text("Hover over nodes to see their direct connections");
-                    
-                document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show All";
             } else {
                 // Reset to normal view
                 link.style("opacity", 1);
                 node.select("circle").style("opacity", 1);
                 node.select("text").style("opacity", 1);
                 svg.select("#instruction-text").remove();
-                document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show Only Direct Connections";
             }
-        }
-
-        function restartSimulation() {
-            // Reset all fixed positions
-            graphNodes.forEach(d => {
-                d.fx = null;
-                d.fy = null;
-            });
-            // Clear highlights and reset view
-            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
-            link.classed("highlighted", false).style("opacity", 1);
-            node.select("text").style("opacity", 1);
-            svg.select("#instruction-text").remove();
-            svg.select("#explanation-text").remove();
-            showingConnectionsOnly = false;
-            document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show Only Direct Connections";
-            // Restart simulation
-            simulation.alpha(1).restart();
-        }
-
-        let animationRunning = true;
-        function toggleAnimation() {
-            if (animationRunning) {
-                simulation.stop();
-                animationRunning = false;
-            } else {
-                simulation.restart();
-                animationRunning = true;
-            }
-        }
-
-        function highlightPath(targetName) {
-            // Clear previous highlights
-            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
-            link.classed("highlighted", false).style("opacity", 1);
-            node.select("text").style("opacity", 1);
-            
-            // Find all paths from root to target (BFS to find shortest paths)
-            function findAllPaths(target) {
-                const paths = [];
-                const queue = [{ node: "Rectangular", path: ["Rectangular"] }];
-                const visited = new Set();
-                
-                while (queue.length > 0) {
-                    const { node: current, path } = queue.shift();
-                    
-                    if (current === target) {
-                        paths.push([...path]);
-                        continue;
-                    }
-                    
-                    // Find children
-                    const children = graphLinks.filter(l => l.source.id === current);
-                    for (const child of children) {
-                        if (!path.includes(child.target.id)) { // Avoid cycles
-                            queue.push({ 
-                                node: child.target.id, 
-                                path: [...path, child.target.id] 
-                            });
-                        }
-                    }
-                }
-                
-                return paths;
-            }
-            
-            const paths = findAllPaths(targetName);
-            const allPathNodes = new Set();
-            
-            // Collect all nodes in any path
-            paths.forEach(path => path.forEach(nodeId => allPathNodes.add(nodeId)));
-            
-            // Highlight path nodes
-            node.select("circle").classed("highlighted-node", d => allPathNodes.has(d.id));
-            node.select("circle").style("opacity", d => allPathNodes.has(d.id) ? 1 : 0.2);
-            node.select("text").style("opacity", d => allPathNodes.has(d.id) ? 1 : 0.2);
-            
-            // Highlight path links
-            link.classed("highlighted", l => {
-                return paths.some(path => {
-                    const sourceIndex = path.indexOf(l.source.id);
-                    const targetIndex = path.indexOf(l.target.id);
-                    return sourceIndex !== -1 && targetIndex === sourceIndex + 1;
-                });
-            }).style("opacity", l => {
-                const isInPath = paths.some(path => {
-                    const sourceIndex = path.indexOf(l.source.id);
-                    const targetIndex = path.indexOf(l.target.id);
-                    return sourceIndex !== -1 && targetIndex === sourceIndex + 1;
-                });
-                return isInPath ? 1 : 0.1;
-            });
-            
-            // Add explanation
-            svg.select("#explanation-text").remove();
-            svg.append("text")
-                .attr("id", "explanation-text")
-                .attr("x", width / 2)
-                .attr("y", 30)
-                .attr("text-anchor", "middle")
-                .style("font-size", "14px")
-                .style("font-weight", "bold")
-                .style("fill", "#2196f3")
-                .text(`All inheritance paths to ${targetName} (${paths.length} path${paths.length !== 1 ? 's' : ''})`)
-                .append("tspan")
-                .attr("x", width / 2)
-                .attr("dy", "1.2em")
-                .style("font-size", "12px")
-                .style("font-weight", "normal")
-                .text(paths.length > 1 ? "Multiple paths show rich mathematical structure" : "Single inheritance path");
         }
 
         // Add zoom functionality
@@ -819,6 +926,9 @@
             });
         
         svg.call(zoom);
+
+        // Initialize with universal view
+        initializeGraph("universal");
     </script>
 </body>
 </html>
