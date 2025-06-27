@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Types Hasse Diagram - Waffle Ware</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .back-link:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        #diagram {
+            width: 100%;
+            height: 800px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node circle {
+            stroke: #333;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+        
+        .node text {
+            font-size: 12px;
+            text-anchor: middle;
+            dominant-baseline: central;
+            pointer-events: none;
+            font-weight: 600;
+            fill: black;
+        }
+        
+        .node:hover circle {
+            stroke-width: 3;
+            filter: drop-shadow(0 0 6px rgba(0,0,0,0.3));
+        }
+        
+        .link {
+            stroke: #666;
+            stroke-width: 2;
+            fill: none;
+            transition: all 0.3s ease;
+        }
+        
+        .link:hover {
+            stroke-width: 3;
+            stroke: #333;
+        }
+        
+        .highlighted {
+            stroke: #ff6b6b !important;
+            stroke-width: 4 !important;
+        }
+        
+        .highlighted-node circle {
+            stroke: #ff6b6b !important;
+            stroke-width: 4 !important;
+            filter: drop-shadow(0 0 10px rgba(255,107,107,0.5));
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .legend-color {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        
+        .description {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+        
+        .description h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧇 Matrix Types Hasse Diagram</h1>
+        <p>Interactive exploration of matrix classification hierarchies</p>
+        <a href="index.html" class="back-link">← Back to Portfolio</a>
+    </div>
+    
+    <div class="container">
+        <div class="controls">
+            <button onclick="resetView()">Reset View</button>
+            <button onclick="toggleAnimation()">Toggle Animation</button>
+            <button onclick="highlightPath('Identity')">Path to Identity</button>
+            <button onclick="highlightPath('Orthogonal')">Path to Orthogonal</button>
+            <button onclick="highlightPath('Symmetric')">Path to Symmetric</button>
+        </div>
+        
+        <svg id="diagram"></svg>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background: #ffeb3b;"></span>
+                <span>General Categories</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #4caf50;"></span>
+                <span>Definite Matrices</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #2196f3;"></span>
+                <span>Special Structures</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #9c27b0;"></span>
+                <span>Triangular Types</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #ff5722;"></span>
+                <span>Diagonal Dominant</span>
+            </div>
+        </div>
+        
+        <div class="description">
+            <h3>About This Visualization</h3>
+            <p>
+                This interactive Hasse diagram represents the hierarchical relationships between different types of matrices in linear algebra. 
+                Each node represents a matrix classification, and the connections show subset relationships - if matrix type A connects to 
+                matrix type B above it, then all matrices of type A are also matrices of type B.
+            </p>
+            <p>
+                <strong>How to use:</strong> Hover over nodes to see immediate relationships, use the path buttons to trace specific 
+                inheritance chains, or drag nodes around to explore the structure. The color coding helps identify related families 
+                of matrix types.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Define the matrix hierarchy data
+        const matrixHierarchy = {
+            "Rectangular": {
+                color: "#ffeb3b",
+                children: {
+                    "Square": {
+                        color: "#ffeb3b",
+                        children: {
+                            "Normal": {
+                                color: "#ffeb3b",
+                                children: {
+                                    "Symmetric": {
+                                        color: "#4caf50",
+                                        children: {
+                                            "Diagonal": {
+                                                color: "#2196f3",
+                                                children: {
+                                                    "Scalar": {
+                                                        color: "#2196f3",
+                                                        children: {
+                                                            "Identity": { color: "#2196f3" },
+                                                            "Zero": { color: "#333" }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "Positive Semidefinite": { color: "#4caf50" },
+                                            "Orthogonal Involutory": { color: "#ff9800" }
+                                        }
+                                    },
+                                    "Hermitian": {
+                                        color: "#4caf50",
+                                        children: {
+                                            "Positive Definite": { color: "#4caf50" },
+                                            "Negative Definite": { color: "#f44336" }
+                                        }
+                                    }
+                                }
+                            },
+                            "Triangular": {
+                                color: "#9c27b0",
+                                children: {
+                                    "Upper Triangular": { color: "#9c27b0" },
+                                    "Lower Triangular": { color: "#9c27b0" }
+                                }
+                            },
+                            "Unitary": {
+                                color: "#2196f3",
+                                children: {
+                                    "Special Unitary": { color: "#2196f3" }
+                                }
+                            },
+                            "Orthogonal": {
+                                color: "#2196f3",
+                                children: {
+                                    "Special Orthogonal": {
+                                        color: "#2196f3",
+                                        children: {
+                                            "Rotation": { color: "#2196f3" }
+                                        }
+                                    },
+                                    "Symmetric Involutory": { color: "#ff9800" }
+                                }
+                            },
+                            "Anti-Symmetric": {
+                                color: "#333",
+                                children: {
+                                    "Zero": { color: "#333" }
+                                }
+                            },
+                            "Anti-Hermitian": { color: "#333" },
+                            "Involutory": {
+                                color: "#ff9800",
+                                children: {
+                                    "Identity": { color: "#2196f3" },
+                                    "Symmetric Orthogonal": { color: "#ff9800" }
+                                }
+                            },
+                            "Shear": { color: "#795548" },
+                            "Z-Matrix": {
+                                color: "#9c27b0",
+                                children: {
+                                    "L-Matrix": {
+                                        color: "#9c27b0",
+                                        children: {
+                                            "M-Matrix": { color: "#4caf50" }
+                                        }
+                                    }
+                                }
+                            },
+                            "H-Matrix": {
+                                color: "#f44336",
+                                children: {
+                                    "M-Matrix": { color: "#4caf50" }
+                                }
+                            },
+                            "Weakly Diagonally Dominant": {
+                                color: "#ff5722",
+                                children: {
+                                    "Strictly Diagonally Dominant": { color: "#ff5722" }
+                                }
+                            },
+                            "Uniform": {
+                                color: "#607d8b",
+                                children: {
+                                    "All-Ones": { color: "#607d8b" },
+                                    "Zero": { color: "#333" }
+                                }
+                            },
+                            "Scaled Elementary": { color: "#e91e63" },
+                            "Reflection": { color: "#e91e63" },
+                            "Negative Semidefinite": { color: "#f44336" }
+                        }
+                    },
+                    "Vectors": {
+                        color: "#4caf50",
+                        children: {
+                            "Row Matrix": { color: "#ffeb3b" },
+                            "Column Matrix": { color: "#ffeb3b" }
+                        }
+                    }
+                }
+            }
+        };
+
+        // Set up SVG
+        const svg = d3.select("#diagram");
+        const width = 1300;
+        const height = 800;
+        svg.attr("width", width).attr("height", height);
+
+        const g = svg.append("g");
+
+        // Convert hierarchy to nodes and links
+        function hierarchyToGraph(data) {
+            const nodes = [];
+            const links = [];
+            const nodeMap = new Map(); // Track existing nodes
+            
+            function traverse(obj, parent = null, level = 0) {
+                for (const [name, info] of Object.entries(obj)) {
+                    // Only create node if it doesn't exist
+                    if (!nodeMap.has(name)) {
+                        const node = {
+                            id: name,
+                            name: name,
+                            color: info.color || "#2196f3",
+                            level: level
+                        };
+                        nodes.push(node);
+                        nodeMap.set(name, node);
+                    }
+                    
+                    // Always add the link if there's a parent
+                    if (parent) {
+                        // Check if this link already exists
+                        const linkExists = links.some(link => 
+                            link.source === parent && link.target === name
+                        );
+                        if (!linkExists) {
+                            links.push({
+                                source: parent,
+                                target: name
+                            });
+                        }
+                    }
+                    
+                    // Continue traversing children
+                    if (info.children) {
+                        traverse(info.children, name, level + 1);
+                    }
+                }
+            }
+            
+            traverse(data);
+            return { nodes, links };
+        }
+
+        const { nodes, links } = hierarchyToGraph(matrixHierarchy);
+
+        // Create force simulation
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(80).strength(0.8))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(30)); // Slightly larger than circle radius
+
+        // Create links
+        const link = g.selectAll(".link")
+            .data(links)
+            .enter().append("line")
+            .attr("class", "link");
+
+        // Create nodes
+        const node = g.selectAll(".node")
+            .data(nodes)
+            .enter().append("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        node.append("circle")
+            .attr("r", 25) // Fixed radius for all nodes
+            .style("fill", d => d.color);
+
+        node.append("text")
+            .text(d => d.name)
+            .each(function(d) {
+                // Handle long text by wrapping if needed
+                const text = d3.select(this);
+                const words = d.name.split(/\s+/);
+                if (words.length > 1 && d.name.length > 12) {
+                    text.text('');
+                    text.append('tspan')
+                        .attr('x', 0)
+                        .attr('dy', '-0.2em')
+                        .text(words[0]);
+                    text.append('tspan')
+                        .attr('x', 0)
+                        .attr('dy', '1.2em')
+                        .text(words.slice(1).join(' '));
+                }
+            });
+
+        // Add hover effects
+        node.on("mouseover", function(event, d) {
+            d3.select(this).classed("highlighted-node", true);
+            // Highlight connected links
+            link.classed("highlighted", function(l) {
+                return l.source.id === d.id || l.target.id === d.id;
+            });
+        })
+        .on("mouseout", function(event, d) {
+            d3.select(this).classed("highlighted-node", false);
+            link.classed("highlighted", false);
+        });
+
+        // Update positions
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Control functions
+        function resetView() {
+            node.classed("highlighted-node", false);
+            link.classed("highlighted", false);
+            simulation.alpha(1).restart();
+        }
+
+        let animationRunning = true;
+        function toggleAnimation() {
+            if (animationRunning) {
+                simulation.stop();
+                animationRunning = false;
+            } else {
+                simulation.restart();
+                animationRunning = true;
+            }
+        }
+
+        function highlightPath(targetName) {
+            resetView();
+            
+            // Find path from root to target
+            function findPath(target) {
+                const path = [];
+                const visited = new Set();
+                
+                function dfs(current, currentPath) {
+                    if (visited.has(current)) return false;
+                    visited.add(current);
+                    currentPath.push(current);
+                    
+                    if (current === target) {
+                        path.push(...currentPath);
+                        return true;
+                    }
+                    
+                    // Find children
+                    for (const link of links) {
+                        if (link.source.id === current && dfs(link.target.id, [...currentPath])) {
+                            return true;
+                        }
+                    }
+                    
+                    return false;
+                }
+                
+                dfs("Rectangular", []);
+                return path;
+            }
+            
+            const path = findPath(targetName);
+            
+            // Highlight path
+            node.classed("highlighted-node", d => path.includes(d.id));
+            link.classed("highlighted", l => {
+                const sourceIndex = path.indexOf(l.source.id);
+                const targetIndex = path.indexOf(l.target.id);
+                return sourceIndex !== -1 && targetIndex !== -1 && Math.abs(sourceIndex - targetIndex) === 1;
+            });
+        }
+
+        // Add zoom functionality
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", function(event) {
+                g.attr("transform", event.transform);
+            });
+        
+        svg.call(zoom);
+    </script>
+</body>
+</html>
