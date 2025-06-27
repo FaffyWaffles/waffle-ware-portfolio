@@ -81,25 +81,43 @@
         
         #diagram {
             width: 100%;
-            height: 800px;
+            height: 700px;
             border: 2px solid #ddd;
             border-radius: 10px;
             background: #fafafa;
         }
         
-        .node {
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .links line {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 2;
+            transition: all 0.2s ease;
         }
         
-        .node circle {
+        .links line:hover {
+            stroke: #333;
+            stroke-width: 3;
+            stroke-opacity: 0.8;
+        }
+        
+        .links line.highlighted {
+            stroke: #ff6b6b;
+            stroke-width: 4;
+            stroke-opacity: 1;
+        }
+        
+        .nodes circle {
             stroke: #333;
             stroke-width: 2;
-            transition: all 0.3s ease;
+            cursor: grab;
         }
         
-        .node text {
-            font-size: 12px;
+        .nodes circle:active {
+            cursor: grabbing;
+        }
+        
+        .nodes text {
+            font-size: 11px;
             text-anchor: middle;
             dominant-baseline: central;
             pointer-events: none;
@@ -107,29 +125,12 @@
             fill: black;
         }
         
-        .node:hover circle {
-            stroke-width: 3;
-            filter: drop-shadow(0 0 6px rgba(0,0,0,0.3));
-        }
-        
-        .link {
-            stroke: #666;
-            stroke-width: 2;
-            fill: none;
-            transition: all 0.3s ease;
-        }
-        
-        .link:hover {
-            stroke-width: 3;
-            stroke: #333;
-        }
-        
         .highlighted {
             stroke: #ff6b6b !important;
             stroke-width: 4 !important;
         }
         
-        .highlighted-node circle {
+        .highlighted-node {
             stroke: #ff6b6b !important;
             stroke-width: 4 !important;
             filter: drop-shadow(0 0 10px rgba(255,107,107,0.5));
@@ -181,8 +182,9 @@
     
     <div class="container">
         <div class="controls">
-            <button onclick="resetView()">Reset View</button>
+            <button onclick="restartSimulation()">Reset Layout</button>
             <button onclick="toggleAnimation()">Toggle Animation</button>
+            <button onclick="showOnlyConnections()">Show Only Direct Connections</button>
             <button onclick="highlightPath('Identity')">Path to Identity</button>
             <button onclick="highlightPath('Orthogonal')">Path to Orthogonal</button>
             <button onclick="highlightPath('Symmetric')">Path to Symmetric</button>
@@ -221,9 +223,13 @@
                 matrix type B above it, then all matrices of type A are also matrices of type B.
             </p>
             <p>
-                <strong>How to use:</strong> Hover over nodes to see immediate relationships, use the path buttons to trace specific 
-                inheritance chains, or drag nodes around to explore the structure. The color coding helps identify related families 
-                of matrix types.
+                <strong>Visual Clarity:</strong> The layout uses strong repulsion forces to prevent lines from overlapping through unconnected nodes. 
+                When you hover over a node, only its direct connections are highlighted while other elements fade, making relationships crystal clear.
+            </p>
+            <p>
+                <strong>How to use:</strong> Hover over nodes to see immediate relationships, use "Show Only Direct Connections" to focus on 
+                individual node relationships, trace specific inheritance chains with the path buttons, or drag nodes around to explore. 
+                The stronger spacing prevents visual confusion from overlapping connection lines.
             </p>
         </div>
     </div>
@@ -354,37 +360,25 @@
             }
         };
 
-        // Set up SVG
-        const svg = d3.select("#diagram");
-        const width = 1300;
-        const height = 800;
-        svg.attr("width", width).attr("height", height);
-
-        const g = svg.append("g");
-
-        // Convert hierarchy to nodes and links
+        // Convert hierarchy to nodes and links format (same as before)
         function hierarchyToGraph(data) {
             const nodes = [];
             const links = [];
-            const nodeMap = new Map(); // Track existing nodes
+            const nodeMap = new Map();
             
-            function traverse(obj, parent = null, level = 0) {
+            function traverse(obj, parent = null) {
                 for (const [name, info] of Object.entries(obj)) {
-                    // Only create node if it doesn't exist
                     if (!nodeMap.has(name)) {
                         const node = {
                             id: name,
                             name: name,
-                            color: info.color || "#2196f3",
-                            level: level
+                            color: info.color || "#2196f3"
                         };
                         nodes.push(node);
                         nodeMap.set(name, node);
                     }
                     
-                    // Always add the link if there's a parent
                     if (parent) {
-                        // Check if this link already exists
                         const linkExists = links.some(link => 
                             link.source === parent && link.target === name
                         );
@@ -396,9 +390,8 @@
                         }
                     }
                     
-                    // Continue traversing children
                     if (info.children) {
-                        traverse(info.children, name, level + 1);
+                        traverse(info.children, name);
                     }
                 }
             }
@@ -407,42 +400,64 @@
             return { nodes, links };
         }
 
+        // Set up the visualization using the clean D3 pattern
+        const width = 1300;
+        const height = 700;
+
+        const svg = d3.select("#diagram")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        // Create a container group for zoom
+        const container = svg.append("g");
+
+        // Generate graph data
         const { nodes, links } = hierarchyToGraph(matrixHierarchy);
+        
+        // Copy for simulation (prevents mutation issues)
+        const graphLinks = links.map(d => ({...d}));
+        const graphNodes = nodes.map(d => ({...d}));
 
-        // Create force simulation
-        const simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(links).id(d => d.id).distance(80).strength(0.8))
-            .force("charge", d3.forceManyBody().strength(-300))
+        // Create simulation with better spacing
+        const simulation = d3.forceSimulation(graphNodes)
+            .force("link", d3.forceLink(graphLinks).id(d => d.id).distance(100).strength(0.7))
+            .force("charge", d3.forceManyBody().strength(-800)) // Much stronger repulsion
             .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(30)); // Slightly larger than circle radius
+            .force("collision", d3.forceCollide().radius(35)) // Larger collision radius
+            .force("x", d3.forceX(width / 2).strength(0.05)) // Gentle centering
+            .force("y", d3.forceY(height / 2).strength(0.05));
 
-        // Create links
-        const link = g.selectAll(".link")
-            .data(links)
-            .enter().append("line")
-            .attr("class", "link");
+        // Add links to container
+        const link = container.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(graphLinks)
+            .join("line");
 
-        // Create nodes
-        const node = g.selectAll(".node")
-            .data(nodes)
-            .enter().append("g")
-            .attr("class", "node")
-            .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
+        // Add node groups to container
+        const node = container.append("g")
+            .attr("class", "nodes")
+            .selectAll("g")
+            .data(graphNodes)
+            .join("g");
 
+        // Add circles to nodes
         node.append("circle")
-            .attr("r", 25) // Fixed radius for all nodes
-            .style("fill", d => d.color);
+            .attr("r", 20)
+            .attr("fill", d => d.color);
 
+        // Add text to nodes
         node.append("text")
-            .text(d => d.name)
+            .text(d => {
+                // Truncate long names for better display
+                return d.name.length > 12 ? d.name.substring(0, 10) + "..." : d.name;
+            })
             .each(function(d) {
-                // Handle long text by wrapping if needed
+                // Handle text wrapping for longer names
                 const text = d3.select(this);
                 const words = d.name.split(/\s+/);
-                if (words.length > 1 && d.name.length > 12) {
+                if (words.length > 1 && d.name.length > 10) {
                     text.text('');
                     text.append('tspan')
                         .attr('x', 0)
@@ -451,24 +466,75 @@
                     text.append('tspan')
                         .attr('x', 0)
                         .attr('dy', '1.2em')
-                        .text(words.slice(1).join(' '));
+                        .text(words.slice(1).join(' ').substring(0, 8));
                 }
             });
 
-        // Add hover effects
+        // Add tooltips
+        node.append("title")
+            .text(d => d.name);
+
+        // Add hover effects with better visual feedback
         node.on("mouseover", function(event, d) {
-            d3.select(this).classed("highlighted-node", true);
-            // Highlight connected links
-            link.classed("highlighted", function(l) {
-                return l.source.id === d.id || l.target.id === d.id;
-            });
+            // Highlight the hovered node
+            d3.select(this).select("circle").classed("highlighted-node", true);
+            
+            if (showingConnectionsOnly) {
+                // In connection-only mode, show only direct connections
+                link.style("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.05);
+                node.select("circle").style("opacity", n => {
+                    if (n.id === d.id) return 1;
+                    const isConnected = graphLinks.some(l => 
+                        (l.source.id === d.id && l.target.id === n.id) || 
+                        (l.target.id === d.id && l.source.id === n.id)
+                    );
+                    return isConnected ? 1 : 0.1;
+                });
+                node.select("text").style("opacity", n => {
+                    if (n.id === d.id) return 1;
+                    const isConnected = graphLinks.some(l => 
+                        (l.source.id === d.id && l.target.id === n.id) || 
+                        (l.target.id === d.id && l.source.id === n.id)
+                    );
+                    return isConnected ? 1 : 0.1;
+                });
+            } else {
+                // Normal mode
+                link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id)
+                    .style("opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.2);
+                
+                node.select("circle").style("opacity", n => {
+                    if (n.id === d.id) return 1;
+                    const isConnected = graphLinks.some(l => 
+                        (l.source.id === d.id && l.target.id === n.id) || 
+                        (l.target.id === d.id && l.source.id === n.id)
+                    );
+                    return isConnected ? 1 : 0.4;
+                });
+            }
         })
         .on("mouseout", function(event, d) {
-            d3.select(this).classed("highlighted-node", false);
-            link.classed("highlighted", false);
+            if (!showingConnectionsOnly) {
+                // Reset styling in normal mode
+                d3.select(this).select("circle").classed("highlighted-node", false);
+                link.classed("highlighted", false).style("opacity", 1);
+                node.select("circle").style("opacity", 1);
+            } else {
+                // In connection-only mode, return to faded state
+                d3.select(this).select("circle").classed("highlighted-node", false);
+                link.style("opacity", 0.1);
+                node.select("circle").style("opacity", 0.3);
+                node.select("text").style("opacity", 0.3);
+            }
         });
 
-        // Update positions
+        // Add drag behavior (clean D3 pattern)
+        node.call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+        // Tick function (clean D3 pattern)
         simulation.on("tick", () => {
             link
                 .attr("x1", d => d.source.x)
@@ -480,28 +546,72 @@
                 .attr("transform", d => `translate(${d.x},${d.y})`);
         });
 
-        // Drag functions
-        function dragstarted(event, d) {
+        // Drag functions (clean D3 pattern)
+        function dragstarted(event) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
         }
 
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
         }
 
-        function dragended(event, d) {
+        function dragended(event) {
             if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            event.subject.fx = null;
+            event.subject.fy = null;
         }
 
         // Control functions
-        function resetView() {
-            node.classed("highlighted-node", false);
-            link.classed("highlighted", false);
+        let showingConnectionsOnly = false;
+        
+        function showOnlyConnections() {
+            showingConnectionsOnly = !showingConnectionsOnly;
+            
+            if (showingConnectionsOnly) {
+                // Make all links very faint
+                link.style("opacity", 0.1);
+                node.select("circle").style("opacity", 0.3);
+                node.select("text").style("opacity", 0.3);
+                
+                // Add instruction text
+                svg.append("text")
+                    .attr("id", "instruction-text")
+                    .attr("x", width / 2)
+                    .attr("y", 30)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .style("fill", "#333")
+                    .text("Hover over nodes to see their direct connections");
+                    
+                document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show All";
+            } else {
+                // Reset to normal view
+                link.style("opacity", 1);
+                node.select("circle").style("opacity", 1);
+                node.select("text").style("opacity", 1);
+                svg.select("#instruction-text").remove();
+                document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show Only Direct Connections";
+            }
+        }
+
+        function restartSimulation() {
+            // Reset all fixed positions
+            graphNodes.forEach(d => {
+                d.fx = null;
+                d.fy = null;
+            });
+            // Clear highlights and reset view
+            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
+            link.classed("highlighted", false).style("opacity", 1);
+            node.select("text").style("opacity", 1);
+            svg.select("#instruction-text").remove();
+            showingConnectionsOnly = false;
+            document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show Only Direct Connections";
+            // Restart simulation
             simulation.alpha(1).restart();
         }
 
@@ -517,7 +627,9 @@
         }
 
         function highlightPath(targetName) {
-            resetView();
+            // Clear previous highlights
+            node.select("circle").classed("highlighted-node", false);
+            link.classed("highlighted", false);
             
             // Find path from root to target
             function findPath(target) {
@@ -534,8 +646,7 @@
                         return true;
                     }
                     
-                    // Find children
-                    for (const link of links) {
+                    for (const link of graphLinks) {
                         if (link.source.id === current && dfs(link.target.id, [...currentPath])) {
                             return true;
                         }
@@ -550,8 +661,10 @@
             
             const path = findPath(targetName);
             
-            // Highlight path
-            node.classed("highlighted-node", d => path.includes(d.id));
+            // Highlight path nodes
+            node.select("circle").classed("highlighted-node", d => path.includes(d.id));
+            
+            // Highlight path links
             link.classed("highlighted", l => {
                 const sourceIndex = path.indexOf(l.source.id);
                 const targetIndex = path.indexOf(l.target.id);
@@ -563,7 +676,7 @@
         const zoom = d3.zoom()
             .scaleExtent([0.1, 4])
             .on("zoom", function(event) {
-                g.attr("transform", event.transform);
+                container.attr("transform", event.transform);
             });
         
         svg.call(zoom);
