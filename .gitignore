@@ -1,0 +1,19 @@
+cat > .gitignore << EOF
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+
+# Local development
+node_modules/
+.env
+EOF
