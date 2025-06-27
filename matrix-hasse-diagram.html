@@ -116,6 +116,37 @@
             cursor: grabbing;
         }
         
+        .nodes circle.multiple-parents {
+            stroke: #ff6b6b;
+            stroke-width: 3;
+            stroke-dasharray: 3,3;
+        }
+        
+        .nodes circle.special-equivalence {
+            stroke: #ff6b6b;
+            stroke-width: 4;
+            stroke-dasharray: 5,5;
+            animation: pulse 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { stroke-opacity: 0.5; }
+            to { stroke-opacity: 1; }
+        }
+        
+        .nodes text.special-text {
+            font-weight: bold;
+            font-size: 10px;
+        }
+        
+        .nodes text.multiple-parents-text {
+            font-weight: 600;
+        }
+        
+        .nodes circle:active {
+            cursor: grabbing;
+        }
+        
         .nodes text {
             font-size: 11px;
             text-anchor: middle;
@@ -185,9 +216,10 @@
             <button onclick="restartSimulation()">Reset Layout</button>
             <button onclick="toggleAnimation()">Toggle Animation</button>
             <button onclick="showOnlyConnections()">Show Only Direct Connections</button>
+            <button onclick="highlightMultipleInheritance()">Highlight Multiple Inheritance</button>
+            <button onclick="highlightNormalMatrices()">Highlight Normal Structure</button>
             <button onclick="highlightPath('Identity')">Path to Identity</button>
-            <button onclick="highlightPath('Orthogonal')">Path to Orthogonal</button>
-            <button onclick="highlightPath('Symmetric')">Path to Symmetric</button>
+            <button onclick="highlightPath('Diagonal')">Path to Diagonal</button>
         </div>
         
         <svg id="diagram"></svg>
@@ -216,187 +248,138 @@
         </div>
         
         <div class="description">
-            <h3>About This Visualization</h3>
+            <h3>Mathematically Accurate Matrix Classification Hasse Diagram</h3>
             <p>
-                This interactive Hasse diagram represents the hierarchical relationships between different types of matrices in linear algebra. 
-                Each node represents a matrix classification, and the connections show subset relationships - if matrix type A connects to 
-                matrix type B above it, then all matrices of type A are also matrices of type B.
+                This interactive Hasse diagram represents the true hierarchical relationships between matrix types as a 
+                <strong>Directed Acyclic Graph (DAG)</strong> rather than a simple tree. Each node represents a matrix classification, 
+                and edges show subset relationships with <strong>multiple inheritance</strong> where mathematically appropriate.
             </p>
             <p>
-                <strong>Visual Clarity:</strong> The layout uses strong repulsion forces to prevent lines from overlapping through unconnected nodes. 
-                When you hover over a node, only its direct connections are highlighted while other elements fade, making relationships crystal clear.
+                <strong>Key Mathematical Corrections:</strong> 
+                • Unitary and Orthogonal matrices are properly shown as Normal (AA* = A*A) 
+                • Diagonal matrices have multiple parents: Symmetric ∩ Upper Triangular ∩ Lower Triangular
+                • Definite matrices are correctly placed only under Hermitian 
+                • Skew-Symmetric and Skew-Hermitian are Normal 
+                • Reflection matrices are Orthogonal ∩ Involutory 
+                • Shear matrices are Upper Triangular
             </p>
             <p>
-                <strong>How to use:</strong> Hover over nodes to see immediate relationships, use "Show Only Direct Connections" to focus on 
-                individual node relationships, trace specific inheritance chains with the path buttons, or drag nodes around to explore. 
-                The stronger spacing prevents visual confusion from overlapping connection lines.
+                <strong>Visual Indicators:</strong> Nodes with dashed borders have multiple inheritance (satisfy multiple independent conditions). 
+                The special three-way equivalence node shows where Symmetric ∩ Orthogonal ≡ Involutory. This DAG structure 
+                accurately represents the mathematical lattice of matrix properties.
+            </p>
+            <p>
+                <strong>How to use:</strong> Hover over nodes to see direct connections, use "Highlight Multiple Inheritance" to see 
+                nodes with multiple parents, "Highlight Normal Structure" shows the key role of normal matrices, or trace 
+                inheritance paths to see the rich mathematical relationships.
             </p>
         </div>
     </div>
 
     <script>
-        // Define the matrix hierarchy data
-        const matrixHierarchy = {
-            "Rectangular": {
-                color: "#ffeb3b",
-                children: {
-                    "Square": {
-                        color: "#ffeb3b",
-                        children: {
-                            "Normal": {
-                                color: "#ffeb3b",
-                                children: {
-                                    "Symmetric": {
-                                        color: "#4caf50",
-                                        children: {
-                                            "Diagonal": {
-                                                color: "#2196f3",
-                                                children: {
-                                                    "Scalar": {
-                                                        color: "#2196f3",
-                                                        children: {
-                                                            "Identity": { color: "#2196f3" },
-                                                            "Zero": { color: "#333" }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "Positive Semidefinite": { color: "#4caf50" },
-                                            "Orthogonal Involutory": { color: "#ff9800" }
-                                        }
-                                    },
-                                    "Hermitian": {
-                                        color: "#4caf50",
-                                        children: {
-                                            "Positive Definite": { color: "#4caf50" },
-                                            "Negative Definite": { color: "#f44336" }
-                                        }
-                                    }
-                                }
-                            },
-                            "Triangular": {
-                                color: "#9c27b0",
-                                children: {
-                                    "Upper Triangular": { color: "#9c27b0" },
-                                    "Lower Triangular": { color: "#9c27b0" }
-                                }
-                            },
-                            "Unitary": {
-                                color: "#2196f3",
-                                children: {
-                                    "Special Unitary": { color: "#2196f3" }
-                                }
-                            },
-                            "Orthogonal": {
-                                color: "#2196f3",
-                                children: {
-                                    "Special Orthogonal": {
-                                        color: "#2196f3",
-                                        children: {
-                                            "Rotation": { color: "#2196f3" }
-                                        }
-                                    },
-                                    "Symmetric Involutory": { color: "#ff9800" }
-                                }
-                            },
-                            "Anti-Symmetric": {
-                                color: "#333",
-                                children: {
-                                    "Zero": { color: "#333" }
-                                }
-                            },
-                            "Anti-Hermitian": { color: "#333" },
-                            "Involutory": {
-                                color: "#ff9800",
-                                children: {
-                                    "Identity": { color: "#2196f3" },
-                                    "Symmetric Orthogonal": { color: "#ff9800" }
-                                }
-                            },
-                            "Shear": { color: "#795548" },
-                            "Z-Matrix": {
-                                color: "#9c27b0",
-                                children: {
-                                    "L-Matrix": {
-                                        color: "#9c27b0",
-                                        children: {
-                                            "M-Matrix": { color: "#4caf50" }
-                                        }
-                                    }
-                                }
-                            },
-                            "H-Matrix": {
-                                color: "#f44336",
-                                children: {
-                                    "M-Matrix": { color: "#4caf50" }
-                                }
-                            },
-                            "Weakly Diagonally Dominant": {
-                                color: "#ff5722",
-                                children: {
-                                    "Strictly Diagonally Dominant": { color: "#ff5722" }
-                                }
-                            },
-                            "Uniform": {
-                                color: "#607d8b",
-                                children: {
-                                    "All-Ones": { color: "#607d8b" },
-                                    "Zero": { color: "#333" }
-                                }
-                            },
-                            "Scaled Elementary": { color: "#e91e63" },
-                            "Reflection": { color: "#e91e63" },
-                            "Negative Semidefinite": { color: "#f44336" }
-                        }
-                    },
-                    "Vectors": {
-                        color: "#4caf50",
-                        children: {
-                            "Row Matrix": { color: "#ffeb3b" },
-                            "Column Matrix": { color: "#ffeb3b" }
-                        }
-                    }
-                }
-            }
+        // Define the matrix types with multiple parents (DAG structure)
+        const matrixTypes = {
+            "Rectangular": { color: "#ffeb3b", parents: [] },
+            "Square": { color: "#ffeb3b", parents: ["Rectangular"] },
+            "Vectors": { color: "#4caf50", parents: ["Rectangular"] },
+            "Row Matrix": { color: "#ffeb3b", parents: ["Vectors"] },
+            "Column Matrix": { color: "#ffeb3b", parents: ["Vectors"] },
+            
+            // Normal matrices - key structural position
+            "Normal": { color: "#e8f5e8", parents: ["Square"] },
+            
+            // Under Normal: Symmetric & Hermitian
+            "Symmetric": { color: "#4caf50", parents: ["Normal"] },
+            "Hermitian": { color: "#4caf50", parents: ["Normal"] },
+            
+            // Under Normal: Unitary & Orthogonal (FIXED)
+            "Unitary": { color: "#2196f3", parents: ["Normal"] },
+            "Orthogonal": { color: "#2196f3", parents: ["Normal"] },
+            "Special Unitary": { color: "#2196f3", parents: ["Unitary"] },
+            "Special Orthogonal": { color: "#2196f3", parents: ["Orthogonal"] },
+            "Rotation": { color: "#2196f3", parents: ["Special Orthogonal"] },
+            
+            // Under Normal: Skew matrices (FIXED)
+            "Skew-Symmetric": { color: "#333", parents: ["Normal"] },
+            "Skew-Hermitian": { color: "#333", parents: ["Normal"] },
+            
+            // Involutory matrices
+            "Involutory": { color: "#ff9800", parents: ["Square"] },
+            
+            // Triangular matrices
+            "Triangular": { color: "#9c27b0", parents: ["Square"] },
+            "Upper Triangular": { color: "#9c27b0", parents: ["Triangular"] },
+            "Lower Triangular": { color: "#9c27b0", parents: ["Triangular"] },
+            
+            // Diagonal matrices - multiple parents (FIXED)
+            "Diagonal": { color: "#2196f3", parents: ["Symmetric", "Upper Triangular", "Lower Triangular"] },
+            "Scalar": { color: "#2196f3", parents: ["Diagonal"] },
+            "Identity": { color: "#2196f3", parents: ["Scalar"] },
+            "Zero": { color: "#333", parents: ["Scalar", "Skew-Symmetric"] },
+            
+            // Definite matrices - only under Hermitian (FIXED)
+            "Positive Definite": { color: "#4caf50", parents: ["Hermitian"] },
+            "Positive Semidefinite": { color: "#4caf50", parents: ["Hermitian"] },
+            "Negative Definite": { color: "#f44336", parents: ["Hermitian"] },
+            "Negative Semidefinite": { color: "#f44336", parents: ["Hermitian"] },
+            
+            // Shear matrices - under triangular (FIXED)
+            "Shear": { color: "#795548", parents: ["Upper Triangular"] },
+            
+            // Reflection matrices - multiple parents (FIXED)
+            "Reflection": { color: "#e91e63", parents: ["Orthogonal", "Involutory"] },
+            
+            // Special three-way equivalence
+            "Symmetric-Orthogonal-Involutory": { 
+                color: "#ff9800", 
+                parents: ["Symmetric", "Orthogonal", "Involutory"],
+                special: true 
+            },
+            
+            // Matrix families
+            "Z-Matrix": { color: "#9c27b0", parents: ["Square"] },
+            "L-Matrix": { color: "#9c27b0", parents: ["Z-Matrix"] },
+            "M-Matrix": { color: "#4caf50", parents: ["L-Matrix", "H-Matrix"] },
+            "H-Matrix": { color: "#f44336", parents: ["Square"] },
+            
+            // Diagonally dominant
+            "Weakly Diagonally Dominant": { color: "#ff5722", parents: ["Square"] },
+            "Strictly Diagonally Dominant": { color: "#ff5722", parents: ["Weakly Diagonally Dominant"] },
+            
+            // Uniform matrices
+            "Uniform": { color: "#607d8b", parents: ["Square"] },
+            "All-Ones": { color: "#607d8b", parents: ["Uniform"] },
+            
+            // Elementary matrices  
+            "Scaled Elementary": { color: "#e91e63", parents: ["Square"] }
         };
 
-        // Convert hierarchy to nodes and links format (same as before)
-        function hierarchyToGraph(data) {
+        // Convert DAG structure to nodes and links
+        function dagToGraph(matrixTypes) {
             const nodes = [];
             const links = [];
-            const nodeMap = new Map();
             
-            function traverse(obj, parent = null) {
-                for (const [name, info] of Object.entries(obj)) {
-                    if (!nodeMap.has(name)) {
-                        const node = {
-                            id: name,
-                            name: name,
-                            color: info.color || "#2196f3"
-                        };
-                        nodes.push(node);
-                        nodeMap.set(name, node);
-                    }
-                    
-                    if (parent) {
-                        const linkExists = links.some(link => 
-                            link.source === parent && link.target === name
-                        );
-                        if (!linkExists) {
-                            links.push({
-                                source: parent,
-                                target: name
-                            });
-                        }
-                    }
-                    
-                    if (info.children) {
-                        traverse(info.children, name);
-                    }
+            // Create nodes
+            for (const [name, info] of Object.entries(matrixTypes)) {
+                nodes.push({
+                    id: name,
+                    name: name,
+                    color: info.color,
+                    special: info.special || false,
+                    parents: info.parents || []
+                });
+            }
+            
+            // Create links from parent relationships
+            for (const [childName, info] of Object.entries(matrixTypes)) {
+                for (const parentName of info.parents) {
+                    links.push({
+                        source: parentName,
+                        target: childName
+                    });
                 }
             }
             
-            traverse(data);
             return { nodes, links };
         }
 
@@ -412,8 +395,8 @@
         // Create a container group for zoom
         const container = svg.append("g");
 
-        // Generate graph data
-        const { nodes, links } = hierarchyToGraph(matrixHierarchy);
+        // Generate graph data from DAG structure
+        const { nodes, links } = dagToGraph(matrixTypes);
         
         // Copy for simulation (prevents mutation issues)
         const graphLinks = links.map(d => ({...d}));
@@ -442,31 +425,58 @@
             .data(graphNodes)
             .join("g");
 
-        // Add circles to nodes
+        // Add circles to nodes with proper styling
         node.append("circle")
             .attr("r", 20)
-            .attr("fill", d => d.color);
+            .attr("fill", d => d.color)
+            .classed("special-equivalence", d => d.special)
+            .classed("multiple-parents", d => d.parents.length > 1 && !d.special);
 
-        // Add text to nodes
+        // Add text to nodes with improved labeling
         node.append("text")
+            .classed("special-text", d => d.special)
+            .classed("multiple-parents-text", d => d.parents.length > 1)
             .text(d => {
-                // Truncate long names for better display
-                return d.name.length > 12 ? d.name.substring(0, 10) + "..." : d.name;
+                // Special handling for the three-way equivalence node
+                if (d.special) {
+                    return "Sym⊕Orth⊕Inv";
+                }
+                // Shortened names for better display
+                const shortNames = {
+                    "Symmetric-Orthogonal-Involutory": "Sym⊕Orth⊕Inv",
+                    "Upper Triangular": "Upper Tri",
+                    "Lower Triangular": "Lower Tri", 
+                    "Positive Definite": "Pos Def",
+                    "Negative Definite": "Neg Def",
+                    "Positive Semidefinite": "Pos SemiDef",
+                    "Negative Semidefinite": "Neg SemiDef",
+                    "Skew-Symmetric": "Skew-Sym",
+                    "Skew-Hermitian": "Skew-Herm",
+                    "Special Unitary": "Sp Unitary",
+                    "Special Orthogonal": "Sp Orthog",
+                    "Strictly Diagonally Dominant": "Strict DiagDom",
+                    "Weakly Diagonally Dominant": "Weak DiagDom",
+                    "Scaled Elementary": "Scaled Elem"
+                };
+                
+                return shortNames[d.name] || (d.name.length > 12 ? d.name.substring(0, 10) + "..." : d.name);
             })
             .each(function(d) {
-                // Handle text wrapping for longer names
-                const text = d3.select(this);
-                const words = d.name.split(/\s+/);
-                if (words.length > 1 && d.name.length > 10) {
-                    text.text('');
-                    text.append('tspan')
-                        .attr('x', 0)
-                        .attr('dy', '-0.2em')
-                        .text(words[0]);
-                    text.append('tspan')
-                        .attr('x', 0)
-                        .attr('dy', '1.2em')
-                        .text(words.slice(1).join(' ').substring(0, 8));
+                // Handle text wrapping for longer names (but not for special nodes)
+                if (!d.special && !d.name.includes("Triangular")) {
+                    const text = d3.select(this);
+                    const words = d.name.split(/\s+/);
+                    if (words.length > 1 && d.name.length > 10) {
+                        text.text('');
+                        text.append('tspan')
+                            .attr('x', 0)
+                            .attr('dy', '-0.2em')
+                            .text(words[0]);
+                        text.append('tspan')
+                            .attr('x', 0)
+                            .attr('dy', '1.2em')
+                            .text(words.slice(1).join(' ').substring(0, 8));
+                    }
                 }
             });
 
@@ -567,6 +577,99 @@
         // Control functions
         let showingConnectionsOnly = false;
         
+        function highlightMultipleInheritance() {
+            // Clear previous highlights
+            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
+            link.classed("highlighted", false).style("opacity", 1);
+            node.select("text").style("opacity", 1);
+            
+            // Find nodes with multiple parents
+            const multiParentNodes = graphNodes.filter(n => n.parents.length > 1);
+            const multiParentIds = multiParentNodes.map(n => n.id);
+            
+            // Highlight nodes with multiple inheritance
+            node.select("circle").style("opacity", d => multiParentIds.includes(d.id) ? 1 : 0.2);
+            node.select("text").style("opacity", d => multiParentIds.includes(d.id) ? 1 : 0.2);
+            
+            // Highlight all links to/from multiple inheritance nodes
+            link.style("opacity", l => {
+                return (multiParentIds.includes(l.target.id) || multiParentIds.includes(l.source.id)) ? 1 : 0.1;
+            }).classed("highlighted", l => {
+                return multiParentIds.includes(l.target.id) || multiParentIds.includes(l.source.id);
+            });
+            
+            // Add explanation text
+            svg.select("#explanation-text").remove();
+            svg.append("text")
+                .attr("id", "explanation-text")
+                .attr("x", width / 2)
+                .attr("y", 30)
+                .attr("text-anchor", "middle")
+                .style("font-size", "14px")
+                .style("font-weight", "bold")
+                .style("fill", "#ff6b6b")
+                .text("Multiple Inheritance Nodes: These matrix types satisfy multiple independent conditions")
+                .append("tspan")
+                .attr("x", width / 2)
+                .attr("dy", "1.2em")
+                .style("font-size", "12px")
+                .style("font-weight", "normal")
+                .text("Examples: Diagonal (Symmetric ∩ Upper ∩ Lower), Reflection (Orthogonal ∩ Involutory), Zero (Scalar ∩ Skew-Symmetric)");
+        }
+        
+        function highlightNormalMatrices() {
+            // Clear previous highlights
+            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
+            link.classed("highlighted", false).style("opacity", 1);
+            node.select("text").style("opacity", 1);
+            
+            // Find Normal node and all its descendants
+            function findDescendants(nodeId, visited = new Set()) {
+                if (visited.has(nodeId)) return [];
+                visited.add(nodeId);
+                
+                const descendants = [nodeId];
+                const children = graphLinks.filter(l => l.source.id === nodeId);
+                
+                for (const child of children) {
+                    descendants.push(...findDescendants(child.target.id, visited));
+                }
+                
+                return descendants;
+            }
+            
+            const normalDescendants = findDescendants("Normal");
+            
+            // Highlight Normal and all its descendants
+            node.select("circle").style("opacity", d => normalDescendants.includes(d.id) ? 1 : 0.2);
+            node.select("text").style("opacity", d => normalDescendants.includes(d.id) ? 1 : 0.2);
+            
+            // Highlight links within the Normal family
+            link.style("opacity", l => {
+                return (normalDescendants.includes(l.source.id) && normalDescendants.includes(l.target.id)) ? 1 : 0.1;
+            }).classed("highlighted", l => {
+                return normalDescendants.includes(l.source.id) && normalDescendants.includes(l.target.id);
+            });
+            
+            // Add explanation text
+            svg.select("#explanation-text").remove();
+            svg.append("text")
+                .attr("id", "explanation-text")
+                .attr("x", width / 2)
+                .attr("y", 30)
+                .attr("text-anchor", "middle")
+                .style("font-size", "14px")
+                .style("font-weight", "bold")
+                .style("fill", "#4caf50")
+                .text("Normal Matrices: AA* = A*A (commute with conjugate transpose)")
+                .append("tspan")
+                .attr("x", width / 2)
+                .attr("dy", "1.2em")
+                .style("font-size", "12px")
+                .style("font-weight", "normal")
+                .text("Includes: Symmetric, Hermitian, Unitary, Orthogonal, Skew-Symmetric, Skew-Hermitian, and all their descendants");
+        }
+        
         function showOnlyConnections() {
             showingConnectionsOnly = !showingConnectionsOnly;
             
@@ -609,6 +712,7 @@
             link.classed("highlighted", false).style("opacity", 1);
             node.select("text").style("opacity", 1);
             svg.select("#instruction-text").remove();
+            svg.select("#explanation-text").remove();
             showingConnectionsOnly = false;
             document.querySelector('button[onclick="showOnlyConnections()"]').textContent = "Show Only Direct Connections";
             // Restart simulation
@@ -628,48 +732,83 @@
 
         function highlightPath(targetName) {
             // Clear previous highlights
-            node.select("circle").classed("highlighted-node", false);
-            link.classed("highlighted", false);
+            node.select("circle").classed("highlighted-node", false).style("opacity", 1);
+            link.classed("highlighted", false).style("opacity", 1);
+            node.select("text").style("opacity", 1);
             
-            // Find path from root to target
-            function findPath(target) {
-                const path = [];
+            // Find all paths from root to target (BFS to find shortest paths)
+            function findAllPaths(target) {
+                const paths = [];
+                const queue = [{ node: "Rectangular", path: ["Rectangular"] }];
                 const visited = new Set();
                 
-                function dfs(current, currentPath) {
-                    if (visited.has(current)) return false;
-                    visited.add(current);
-                    currentPath.push(current);
+                while (queue.length > 0) {
+                    const { node: current, path } = queue.shift();
                     
                     if (current === target) {
-                        path.push(...currentPath);
-                        return true;
+                        paths.push([...path]);
+                        continue;
                     }
                     
-                    for (const link of graphLinks) {
-                        if (link.source.id === current && dfs(link.target.id, [...currentPath])) {
-                            return true;
+                    // Find children
+                    const children = graphLinks.filter(l => l.source.id === current);
+                    for (const child of children) {
+                        if (!path.includes(child.target.id)) { // Avoid cycles
+                            queue.push({ 
+                                node: child.target.id, 
+                                path: [...path, child.target.id] 
+                            });
                         }
                     }
-                    
-                    return false;
                 }
                 
-                dfs("Rectangular", []);
-                return path;
+                return paths;
             }
             
-            const path = findPath(targetName);
+            const paths = findAllPaths(targetName);
+            const allPathNodes = new Set();
+            
+            // Collect all nodes in any path
+            paths.forEach(path => path.forEach(nodeId => allPathNodes.add(nodeId)));
             
             // Highlight path nodes
-            node.select("circle").classed("highlighted-node", d => path.includes(d.id));
+            node.select("circle").classed("highlighted-node", d => allPathNodes.has(d.id));
+            node.select("circle").style("opacity", d => allPathNodes.has(d.id) ? 1 : 0.2);
+            node.select("text").style("opacity", d => allPathNodes.has(d.id) ? 1 : 0.2);
             
             // Highlight path links
             link.classed("highlighted", l => {
-                const sourceIndex = path.indexOf(l.source.id);
-                const targetIndex = path.indexOf(l.target.id);
-                return sourceIndex !== -1 && targetIndex !== -1 && Math.abs(sourceIndex - targetIndex) === 1;
+                return paths.some(path => {
+                    const sourceIndex = path.indexOf(l.source.id);
+                    const targetIndex = path.indexOf(l.target.id);
+                    return sourceIndex !== -1 && targetIndex === sourceIndex + 1;
+                });
+            }).style("opacity", l => {
+                const isInPath = paths.some(path => {
+                    const sourceIndex = path.indexOf(l.source.id);
+                    const targetIndex = path.indexOf(l.target.id);
+                    return sourceIndex !== -1 && targetIndex === sourceIndex + 1;
+                });
+                return isInPath ? 1 : 0.1;
             });
+            
+            // Add explanation
+            svg.select("#explanation-text").remove();
+            svg.append("text")
+                .attr("id", "explanation-text")
+                .attr("x", width / 2)
+                .attr("y", 30)
+                .attr("text-anchor", "middle")
+                .style("font-size", "14px")
+                .style("font-weight", "bold")
+                .style("fill", "#2196f3")
+                .text(`All inheritance paths to ${targetName} (${paths.length} path${paths.length !== 1 ? 's' : ''})`)
+                .append("tspan")
+                .attr("x", width / 2)
+                .attr("dy", "1.2em")
+                .style("font-size", "12px")
+                .style("font-weight", "normal")
+                .text(paths.length > 1 ? "Multiple paths show rich mathematical structure" : "Single inheritance path");
         }
 
         // Add zoom functionality
