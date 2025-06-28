@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waffle Ware</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            background-color: #1a1a1a;
+        }
+
+        .floating-shape {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .shape-circle {
+            border-radius: 50%;
+            border: 1px solid rgba(0, 191, 255, 0.3);
+        }
+
+        .shape-square {
+            border: 1px solid rgba(0, 191, 255, 0.2);
+            transform: rotate(45deg);
+        }
+
+        .shape-triangle {
+            width: 0;
+            height: 0;
+            border-left: transparent;
+            border-right: transparent;
+            border-bottom: solid rgba(0, 191, 255, 0.25);
+            border-left-width: 8px;
+            border-right-width: 8px;
+            border-bottom-width: 14px;
+            border-left-style: solid;
+            border-right-style: solid;
+        }
+
+        .shape-diamond {
+            border: 1px solid rgba(0, 191, 255, 0.35);
+            transform: rotate(45deg);
+        }
+
+        .shape-hexagon {
+            border: 1px solid rgba(0, 191, 255, 0.3);
+            position: relative;
+        }
+
+        .shape-hexagon:before,
+        .shape-hexagon:after {
+            content: "";
+            position: absolute;
+            border-left: inherit;
+            border-right: inherit;
+        }
+
+        /* Header */
+        header {
+            background-color: #2a2a2a;
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00bfff;
+            text-decoration: none;
+            text-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
+            transition: text-shadow 0.3s ease;
+        }
+
+        .logo:hover {
+            text-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: #00bfff;
+        }
+
+        .nav-link.active {
+            color: #00bfff;
+        }
+
+        /* Main Content */
+        main {
+            padding: 3rem 2rem; /* Increased vertical padding from 2rem */
+            min-height: calc(100vh - 120px);
+        }
+
+        .intro {
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start; /* Left align instead of center */
+            margin-bottom: 6rem;
+            padding-left: 4rem; /* Add left padding */
+            position: relative;
+        }
+
+        .intro h1 {
+            font-size: 4.5rem; /* Even bigger */
+            margin-bottom: 1rem;
+            color: #00bfff;
+            text-shadow: 0 0 30px rgba(0, 191, 255, 0.3);
+            font-weight: 700;
+            line-height: 0.9;
+        }
+
+        .intro .subtitle {
+            font-size: 1.3rem;
+            color: #b0b0b0;
+            margin-bottom: 3rem;
+            font-weight: 300;
+            opacity: 0.9;
+            max-width: 500px; /* Constrain width */
+        }
+
+        /* Add some modern UI flourishes */
+        .intro::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-75%);
+            width: 7px;
+            height: 180px;
+            background: linear-gradient(to bottom, transparent, #00bfff, transparent);
+            border-radius: 2px;
+        }
+
+        .intro::after {
+            content: '';
+            position: absolute;
+            right: 25%;
+            top: 30%;
+            width: 200px;
+            height: 200px;
+            border: 1px solid rgba(0, 191, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* Add a subtle call-to-action */
+        .scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 4rem;
+            color: #666;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        .scroll-hint::after {
+            content: '↓';
+            font-size: 1.2rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* Project Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem; /* Increased from 2rem for more open feeling */
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .project-card {
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            border: 1px solid #3a3a3a;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            border-color: #00bfff;
+            box-shadow: 0 10px 30px rgba(0, 191, 255, 0.2);
+        }
+
+        .project-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .project-content {
+            padding: 1.5rem;
+        }
+
+        .project-card h3 {
+            color: #00bfff;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .project-card p {
+            color: #b0b0b0;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .project-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tag {
+            background-color: #3a3a3a;
+            color: #00bfff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            border: 1px solid #00bfff;
+        }
+
+        .project-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .project-link {
+            color: #00bfff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.3rem 0.8rem;
+            border: 1px solid #00bfff;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .project-link:hover {
+            background-color: #00bfff;
+            color: #1a1a1a;
+        }
+
+        /* Footer */
+        footer {
+            background-color: #2a2a2a;
+            padding: 2rem;
+            border-top: 2px solid #3a3a3a;
+            text-align: center;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .social-links a {
+            color: #b0b0b0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .social-links a:hover {
+            color: #00bfff;
+            background-color: #3a3a3a;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .logo {
+                font-size: 1.5rem;
+            }
+
+            .nav-menu {
+                gap: 1rem;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            .intro {
+                min-height: 70vh;
+                padding-left: 2rem; /* Reduce left padding on mobile */
+                align-items: center; /* Center on mobile */
+                text-align: center;
+            }
+
+            .intro h1 {
+                font-size: 3rem; /* Scaled down for mobile */
+            }
+
+            .intro .subtitle {
+                font-size: 1.2rem; /* Scaled down for mobile */
+                text-align: center;
+            }
+
+            .intro::before {
+                display: none; /* Hide decorative elements on mobile */
+            }
+
+            .intro::after {
+                display: none;
+            }
+
+            .scroll-hint {
+                left: 50% !important;
+                transform: translateX(-50%);
+            }
+
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .social-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg" id="animatedBg"></div>
+
+    <header>
+        <a href="#" class="logo">Waffle Ware</a>
+        <nav class="nav-menu">
+            <a href="#projects" class="nav-link active">Projects</a>
+            <a href="#about" class="nav-link">About</a>
+            <a href="#research" class="nav-link">Research</a>
+            <a href="#contact" class="nav-link">Contact</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="intro">
+            <h1>Waffle Ware</h1>
+            <div class="subtitle">Interactive Projects & Mathematical Visualizations</div>
+            <div class="scroll-hint">Explore Projects</div>
+        </section>
+
+        <section class="projects-grid" id="projects">
+            <div class="project-card">
+                <div class="project-image">
+                    [Mesh Slicer Demo Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Non-Planar Mesh Slicer</h3>
+                    <p>Real-time 3D model cutting along arbitrary curved paths using advanced computational geometry algorithms. Supports animation-preserving cuts and topological consistency validation.</p>
+                    <div class="project-tags">
+                        <span class="tag">C#</span>
+                        <span class="tag">Unity</span>
+                        <span class="tag">Computational Geometry</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Demo</a>
+                        <a href="#" class="project-link">GitHub</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Physics Equation Graph Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Physics Equation Visualizer</h3>
+                    <p>Interactive web-based force-directed graph revealing connections between hundreds of physics equations across disparate domains, illustrating fundamental relationships often obscured by traditional presentations.</p>
+                    <div class="project-tags">
+                        <span class="tag">JavaScript</span>
+                        <span class="tag">D3.js</span>
+                        <span class="tag">Data Visualization</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Live Demo</a>
+                        <a href="#" class="project-link">Source</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Convex Decomposition Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Fast Convex Decomposition</h3>
+                    <p>Novel approximate convex decomposition algorithm using parallel internal ray-tracing and clustering. Achieves real-time processing speeds for meshes up to 10,000 triangles through GPU acceleration.</p>
+                    <div class="project-tags">
+                        <span class="tag">C#</span>
+                        <span class="tag">Unity</span>
+                        <span class="tag">GPU Computing</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Unity Asset</a>
+                        <a href="#" class="project-link">Documentation</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Mandelbrot Set Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Mandelbrot Set Explorer</h3>
+                    <p>Interactive visualization of the Mandelbrot set and Julia sets with real-time parameter adjustment. Features deep zoom capabilities and custom color palette generation.</p>
+                    <div class="project-tags">
+                        <span class="tag">JavaScript</span>
+                        <span class="tag">WebGL</span>
+                        <span class="tag">Complex Analysis</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Live Demo</a>
+                        <a href="#" class="project-link">Source</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [3D Audio Visualizer Preview]
+                </div>
+                <div class="project-content">
+                    <h3>3D Audio Visualizer</h3>
+                    <p>NURBS-based 3D sound visualization system generating dynamic meshes responding to audio frequencies. Features collision detection and oscilloscope art capabilities through precise signal manipulation.</p>
+                    <div class="project-tags">
+                        <span class="tag">Audio Processing</span>
+                        <span class="tag">3D Graphics</span>
+                        <span class="tag">FFT</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Demo</a>
+                        <a href="#" class="project-link">Documentation</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [VR Environment Preview]
+                </div>
+                <div class="project-content">
+                    <h3>VR Sandbox Environment</h3>
+                    <p>Modular system for implementing VR mechanics using Oculus SDK and XR systems. Features physics-based interactions, hand tracking, and customizable development tools.</p>
+                    <div class="project-tags">
+                        <span class="tag">VR/AR</span>
+                        <span class="tag">Unity</span>
+                        <span class="tag">XR Toolkit</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Demo Video</a>
+                        <a href="#" class="project-link">GitHub</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Field of View Preview]
+                </div>
+                <div class="project-content">
+                    <h3>3D Field of View System</h3>
+                    <p>Commercial Unity asset implementing optimized Fibonacci sphere projection for accurate 3D agent behavior modeling. Used in AI pathfinding and game development.</p>
+                    <div class="project-tags">
+                        <span class="tag">C#</span>
+                        <span class="tag">Unity</span>
+                        <span class="tag">AI Systems</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Unity Asset Store</a>
+                        <a href="#" class="project-link">Documentation</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Riemann Zeta Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Riemann Zeta Visualizer</h3>
+                    <p>Interactive exploration of the Riemann zeta function in the complex plane. Features critical line analysis, zero finding algorithms, and real-time function evaluation.</p>
+                    <div class="project-tags">
+                        <span class="tag">JavaScript</span>
+                        <span class="tag">Complex Analysis</span>
+                        <span class="tag">Number Theory</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Live Demo</a>
+                        <a href="#" class="project-link">Mathematical Notes</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Mesh Debugger Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Mesh Topology Debugger</h3>
+                    <p>Comprehensive debugging tool providing detailed visual representations of 3D mesh properties. Enables intuitive analysis of complex topological structures and geometric errors.</p>
+                    <div class="project-tags">
+                        <span class="tag">C#</span>
+                        <span class="tag">Unity</span>
+                        <span class="tag">Computational Geometry</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Unity Package</a>
+                        <a href="#" class="project-link">Source</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <div class="project-image">
+                    [Rounding Functions Preview]
+                </div>
+                <div class="project-content">
+                    <h3>Novel Rounding Functions</h3>
+                    <p>Research on new mathematical representations extending floor, ceiling, and rounding functions to trigonometric and complex domains. Implemented with formal proof verification.</p>
+                    <div class="project-tags">
+                        <span class="tag">Mathematics</span>
+                        <span class="tag">Lean 4</span>
+                        <span class="tag">Formal Verification</span>
+                    </div>
+                    <div class="project-links">
+                        <a href="#" class="project-link">Interactive Demo</a>
+                        <a href="#" class="project-link">Lean Proofs</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="social-links">
+            <a href="#">GitHub</a>
+            <a href="#">LinkedIn</a>
+            <a href="#">YouTube</a>
+            <a href="#">Research Gate</a>
+            <a href="#">Email</a>
+        </div>
+        <p>&copy; 2025 Waffle Ware. All rights reserved.</p>
+    </footer>
+
+    <script>
+        class AnimatedBackground {
+            constructor() {
+                this.container = document.getElementById('animatedBg');
+                this.shapes = ['circle', 'square', 'triangle', 'diamond'];
+                this.maxShapes = 100;
+                this.spawnRate = 40;
+                this.scrollOffset = 0;
+                this.totalCreated = 0;
+                this.debugMode = false;
+                this.offScreenTimeout = 3000;
+                
+                this.init();
+                this.createDebugger();
+            }
+
+            init() {
+                // Create initial scattered shapes with random progress
+                for (let i = 0; i < 35; i++) {
+                    setTimeout(() => this.createShape(true), i * 60);
+                }
+
+                // Start spawning new shapes
+                this.spawnInterval = setInterval(() => {
+                    this.createShape();
+                }, this.spawnRate);
+
+                // Start off-screen cleanup checker
+                this.cleanupInterval = setInterval(() => {
+                    this.cleanupOffScreenShapes();
+                }, 2000);
+
+                // Add scroll listener for 3D effect
+                this.addScrollListener();
+            }
+
+            createDebugger() {
+                // Create debug overlay
+                const debugDiv = document.createElement('div');
+                debugDiv.id = 'backgroundDebugger';
+                debugDiv.style.cssText = `
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0, 0, 0, 0.8);
+                    color: #00bfff;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-family: monospace;
+                    font-size: 12px;
+                    z-index: 1000;
+                    display: none;
+                    border: 1px solid #00bfff;
+                `;
+                document.body.appendChild(debugDiv);
+
+                // Add keyboard listener for 'D' key to toggle debug
+                document.addEventListener('keydown', (e) => {
+                    if (e.key.toLowerCase() === 'd') {
+                        this.debugMode = !this.debugMode;
+                        debugDiv.style.display = this.debugMode ? 'block' : 'none';
+                        if (this.debugMode) {
+                            this.updateDebugger();
+                        }
+                    }
+                });
+
+                // Update debugger every second when active
+                this.debugInterval = setInterval(() => {
+                    if (this.debugMode) {
+                        this.updateDebugger();
+                    }
+                }, 1000);
+            }
+
+            updateDebugger() {
+                const debugDiv = document.getElementById('backgroundDebugger');
+                if (!debugDiv) return;
+
+                const activeShapes = this.container.querySelectorAll('.floating-shape').length;
+                const offScreenShapes = this.getOffScreenCount();
+                const avgOpacity = this.getAverageOpacity();
+                
+                debugDiv.innerHTML = `
+                    <strong>Background Particles Debug</strong><br>
+                    Active Particles: ${activeShapes}<br>
+                    Off-Screen: ${offScreenShapes}<br>
+                    Max Particles: ${this.maxShapes}<br>
+                    Total Created: ${this.totalCreated}<br>
+                    Spawn Rate: ${this.spawnRate}ms<br>
+                    Off-Screen Timeout: ${this.offScreenTimeout}ms<br>
+                    Avg Opacity: ${avgOpacity}%<br>
+                    Scroll Offset: ${Math.round(this.scrollOffset)}px<br>
+                    <small>Press 'D' to toggle</small>
+                `;
+            }
+
+            getOffScreenCount() {
+                const shapes = this.container.querySelectorAll('.floating-shape');
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                let offScreenCount = 0;
+                
+                shapes.forEach(shape => {
+                    const rect = shape.getBoundingClientRect();
+                    const margin = 100;
+                    
+                    const isOffScreen = (
+                        rect.right < -margin ||
+                        rect.left > viewportWidth + margin ||
+                        rect.bottom < -margin ||
+                        rect.top > viewportHeight + margin
+                    );
+                    
+                    if (isOffScreen) offScreenCount++;
+                });
+                
+                return offScreenCount;
+            }
+
+            getAverageOpacity() {
+                const shapes = this.container.querySelectorAll('.floating-shape');
+                if (shapes.length === 0) return 0;
+                
+                let totalOpacity = 0;
+                shapes.forEach(shape => {
+                    const opacity = window.getComputedStyle(shape).opacity;
+                    totalOpacity += parseFloat(opacity);
+                });
+                
+                return Math.round((totalOpacity / shapes.length) * 100);
+            }
+
+            addScrollListener() {
+                let ticking = false;
+                
+                const updateScroll = () => {
+                    this.scrollOffset = window.pageYOffset;
+                    this.updateShapePositions();
+                    ticking = false;
+                };
+
+                this.scrollHandler = () => {
+                    if (!ticking) {
+                        requestAnimationFrame(updateScroll);
+                        ticking = true;
+                    }
+                };
+
+                window.addEventListener('scroll', this.scrollHandler);
+            }
+
+            updateShapePositions() {
+                // Apply parallax effect to the entire background container
+                this.container.style.transform = `translateY(${-this.scrollOffset * 0.2}px)`;
+            }
+
+            cleanupOffScreenShapes() {
+                const shapes = this.container.querySelectorAll('.floating-shape');
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const currentTime = Date.now();
+                
+                shapes.forEach(shape => {
+                    const rect = shape.getBoundingClientRect();
+                    const margin = 100;
+                    
+                    const isOffScreen = (
+                        rect.right < -margin ||
+                        rect.left > viewportWidth + margin ||
+                        rect.bottom < -margin ||
+                        rect.top > viewportHeight + margin
+                    );
+                    
+                    if (isOffScreen) {
+                        if (!shape.offScreenSince) {
+                            shape.offScreenSince = currentTime;
+                        }
+                        
+                        if (currentTime - shape.offScreenSince > this.offScreenTimeout) {
+                            shape.remove();
+                        }
+                    } else {
+                        delete shape.offScreenSince;
+                    }
+                });
+            }
+
+            // NEW: Generate weighted size factor favoring larger particles
+            generateSizeFactor() {
+                // Use power distribution to favor larger particles
+                // Higher power = more bias toward larger particles
+                const randomValue = Math.random();
+                const power = 0.6; // Adjust this value (0.5-1.0) to control bias
+                const skewed = Math.pow(randomValue, power);
+                
+                // Map to size range (0.8 to 3.8)
+                return 0.8 + skewed * 3.0;
+            }
+
+            // NEW: Calculate physics properties based on size
+            calculatePhysicsProperties(sizeFactor) {
+                // Normalize size factor to 0-1 range for calculations
+                const normalizedSize = (sizeFactor - 0.8) / 3.0;
+                
+                // Speed: Larger particles move slower (inverse relationship)
+                const speedMultiplier = 1.8 - (normalizedSize * 0.8); // Range: 1.8 to 1.0
+                
+                // Rotation: Larger particles rotate less (inverse relationship)
+                const rotationMultiplier = 1.5 - (normalizedSize * 0.7); // Range: 1.5 to 0.8
+                
+                // Opacity: Larger particles can be more opaque
+                const maxOpacity = 0.6 + (normalizedSize * 0.2); // Range: 0.6 to 0.8
+                
+                // Duration: Larger particles last longer
+                const durationMultiplier = 2.0 + (normalizedSize * 1.5); 
+                
+                return {
+                    speedMultiplier,
+                    rotationMultiplier,
+                    maxOpacity,
+                    durationMultiplier
+                };
+            }
+
+            createShape(isInitial = false) {
+                const currentShapes = this.container.querySelectorAll('.floating-shape');
+                if (currentShapes.length > this.maxShapes) {
+                    const finishedShapes = Array.from(currentShapes).filter(shape => {
+                        const style = window.getComputedStyle(shape);
+                        return parseFloat(style.opacity) < 0.1;
+                    });
+                    if (finishedShapes.length > 0) {
+                        finishedShapes[0].remove();
+                    }
+                }
+
+                const shape = document.createElement('div');
+                shape.className = 'floating-shape';
+
+                const shapeType = this.shapes[Math.floor(Math.random() * this.shapes.length)];
+                shape.classList.add(`shape-${shapeType}`);
+
+                // NEW: Use weighted size generation
+                const sizeFactor = this.generateSizeFactor();
+                
+                // NEW: Calculate physics properties based on size
+                const physics = this.calculatePhysicsProperties(sizeFactor);
+                
+                let xPosition, yPosition;
+                
+                if (isInitial) {
+                    const gridSize = Math.sqrt(35);
+                    const gridIndex = this.totalCreated % 35;
+                    const gridX = (gridIndex % gridSize) / gridSize;
+                    const gridY = Math.floor(gridIndex / gridSize) / gridSize;
+                    
+                    xPosition = (gridX * 80 + Math.random() * 20) + Math.random() * 10;
+                    yPosition = (gridY * 80 + Math.random() * 20) + Math.random() * 10;
+                } else {
+                    const spawnAbove = Math.random() < 0.55;
+                    
+                    if (spawnAbove) {
+                        const viewportHeight = window.innerHeight;
+                        const scrollTop = window.pageYOffset;
+                        
+                        const spawnDistance = 100 + Math.random() * 300;
+                        const spawnY = scrollTop - spawnDistance;
+                        
+                        const pageHeight = Math.max(document.documentElement.scrollHeight, viewportHeight);
+                        yPosition = Math.max(0, (spawnY / pageHeight) * 100);
+                        
+                        xPosition = -5 + Math.random() * 110;
+                    } else {
+                        xPosition = -5 + Math.random() * 110;
+                        yPosition = -5 + Math.random() * 110;
+                    }
+                }
+                
+                // NEW: Apply duration multiplier based on size
+                const baseDuration = 8 + Math.random() * 10;
+                const duration = baseDuration * physics.durationMultiplier / sizeFactor;
+                
+                let delay = 0;
+                let animationDelay = 0;
+                if (isInitial) {
+                    delay = Math.random() * 2;
+                    animationDelay = -(Math.random() * duration * 0.7);
+                } else {
+                    delay = Math.random() * 2;
+                }
+
+                shape.style.left = `${xPosition}%`;
+                shape.style.top = `${yPosition}%`;
+                
+                this.setShapeSize(shape, shapeType, sizeFactor);
+                this.animateShape(shape, duration, delay + animationDelay, sizeFactor, physics);
+                
+                this.container.appendChild(shape);
+                this.totalCreated++;
+            }
+
+            setShapeSize(shape, shapeType, sizeFactor) {
+                switch(shapeType) {
+                    case 'circle':
+                        const circleSize = Math.round(20 * sizeFactor);
+                        shape.style.width = `${circleSize}px`;
+                        shape.style.height = `${circleSize}px`;
+                        break;
+                        
+                    case 'square':
+                    case 'diamond':
+                        const squareSize = Math.round(16 * sizeFactor);
+                        shape.style.width = `${squareSize}px`;
+                        shape.style.height = `${squareSize}px`;
+                        break;
+                        
+                    case 'triangle':
+                        const triangleSize = Math.round(8 * sizeFactor);
+                        shape.style.borderLeftWidth = `${triangleSize}px`;
+                        shape.style.borderRightWidth = `${triangleSize}px`;
+                        shape.style.borderBottomWidth = `${Math.round(14 * sizeFactor)}px`;
+                        break;
+                }
+            }
+
+            animateShape(shape, duration, delay, sizeFactor, physics) {
+                // NEW: Apply physics-based movement calculations
+                const xDrift = (-100 + Math.random() * 200) * physics.speedMultiplier;
+                const yDrift = (200 + Math.random() * 400) * physics.speedMultiplier;
+                
+                // NEW: Rotation based on size (larger = less rotation)
+                let rotationMultiplier = physics.rotationMultiplier;
+                
+                // BANDAID FIX: Triangles rotate much slower to avoid wobbly appearance
+                if (shape.classList.contains('shape-triangle')) {
+                    rotationMultiplier *= 0.2; // Reduce triangle rotation to 20% of normal
+                }
+                
+                const rotationAmount = (0.75 + Math.random() * 2) * 360 * rotationMultiplier;
+                const rotationDirection = Math.random() > 0.5 ? 1 : -1;
+                const finalRotation = rotationAmount * rotationDirection;
+
+                // NEW: Size-based opacity
+                const peakOpacity = physics.maxOpacity;
+                const midOpacity = peakOpacity * 0.9;
+                const fadeOpacity = peakOpacity * 0.7;
+
+                const keyframes = [
+                    // Spawn: invisible and tiny, linear movement starts
+                    {
+                        opacity: 0,
+                        transform: `translateY(${yDrift * 0.0}px) translateX(${xDrift * 0.0}px) rotate(${finalRotation * 0.0}deg) scale(0)`,
+                        offset: 0
+                    },
+                    // Fade in: become visible and full size, LINEAR movement progression
+                    {
+                        opacity: peakOpacity,
+                        transform: `translateY(${yDrift * 0.1}px) translateX(${xDrift * 0.1}px) rotate(${finalRotation * 0.1}deg) scale(1)`,
+                        offset: 0.1
+                    },
+                    // Mid animation: LINEAR movement progression continues
+                    {
+                        opacity: midOpacity,
+                        transform: `translateY(${yDrift * 0.5}px) translateX(${xDrift * 0.5}px) rotate(${finalRotation * 0.5}deg) scale(1)`,
+                        offset: 0.5
+                    },
+                    // Late animation: LINEAR movement progression, start to fade
+                    {
+                        opacity: fadeOpacity,
+                        transform: `translateY(${yDrift * 0.9}px) translateX(${xDrift * 0.9}px) rotate(${finalRotation * 0.9}deg) scale(1)`,
+                        offset: 0.9
+                    },
+                    // End: complete LINEAR movement, fade out and shrink
+                    {
+                        opacity: 0,
+                        transform: `translateY(${yDrift * 1.0}px) translateX(${xDrift * 1.0}px) rotate(${finalRotation * 1.0}deg) scale(0)`,
+                        offset: 1
+                    }
+                ];
+
+                const animation = shape.animate(keyframes, {
+                    duration: duration * 1000,
+                    delay: delay * 1000,
+                    easing: 'linear', // CHANGED: Use linear easing for constant speed
+                    fill: 'forwards'
+                });
+
+                animation.addEventListener('finish', () => {
+                    if (shape.parentNode) {
+                        shape.remove();
+                    }
+                });
+            }
+
+            destroy() {
+                if (this.spawnInterval) {
+                    clearInterval(this.spawnInterval);
+                }
+                if (this.cleanupInterval) {
+                    clearInterval(this.cleanupInterval);
+                }
+                if (this.debugInterval) {
+                    clearInterval(this.debugInterval);
+                }
+                window.removeEventListener('scroll', this.scrollHandler);
+                
+                const debugDiv = document.getElementById('backgroundDebugger');
+                if (debugDiv) {
+                    debugDiv.remove();
+                }
+                
+                this.container.innerHTML = '';
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AnimatedBackground();
+        });
+    </script>
+</body>
+</html>
