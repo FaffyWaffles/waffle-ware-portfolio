@@ -90,16 +90,47 @@
             z-index: 100;
         }
 
+        /* Updated Logo Styles for PNG Image */
         .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .logo img {
+            height: 40px; /* Adjust this value based on your logo size */
+            width: auto; /* Maintains aspect ratio */
+            max-width: 200px; /* Prevents logo from being too wide */
+            filter: brightness(1.1) drop-shadow(0 0 10px rgba(0, 191, 255, 0.3));
+            transition: all 0.3s ease;
+        }
+
+        .logo:hover img {
+            filter: brightness(1.2) drop-shadow(0 0 20px rgba(0, 191, 255, 0.5));
+            transform: scale(1.05);
+        }
+
+        /* Fallback text logo (if image doesn't load) */
+        .logo-text {
             font-size: 2rem;
             font-weight: bold;
             color: #00bfff;
-            text-decoration: none;
             text-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
-            transition: text-shadow 0.3s ease;
+            margin-left: 10px;
         }
 
-        .logo:hover {
+        /* Show text logo alongside image */
+        .logo-text {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00bfff;
+            text-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
+            margin-left: 15px;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        .logo:hover .logo-text {
             text-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
         }
 
@@ -334,8 +365,9 @@
                 gap: 1rem;
             }
 
-            .logo {
-                font-size: 1.5rem;
+            .logo img {
+                height: 32px; /* Smaller logo on mobile */
+                max-width: 150px;
             }
 
             .nav-menu {
@@ -392,7 +424,11 @@
     <div class="animated-bg" id="animatedBg"></div>
 
     <header>
-        <a href="#" class="logo">Waffle Ware</a>
+        <!-- Updated logo implementation with PNG support -->
+        <a href="#" class="logo">
+            <img src="waffle-ware-logo.png" alt="Waffle Ware Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+            <span class="logo-text">Waffle Ware</span>
+        </a>
         <nav class="nav-menu">
             <a href="#projects" class="nav-link active">Projects</a>
             <a href="#about" class="nav-link">About</a>
@@ -617,7 +653,7 @@
             constructor() {
                 this.container = document.getElementById('animatedBg');
                 this.shapes = ['circle', 'square', 'triangle', 'diamond'];
-                this.maxShapes = 100;
+                this.maxShapes = 80;
                 this.spawnRate = 40;
                 this.scrollOffset = 0;
                 this.totalCreated = 0;
@@ -824,7 +860,7 @@
                 const rotationMultiplier = 1.5 - (normalizedSize * 0.7); // Range: 1.5 to 0.8
                 
                 // Opacity: Larger particles can be more opaque
-                const maxOpacity = 0.6 + (normalizedSize * 0.2); // Range: 0.6 to 0.8
+                const maxOpacity = 0.2 + (normalizedSize * 0.5); // Range: 0.6 to 0.8
                 
                 // Duration: Larger particles last longer
                 const durationMultiplier = 2.0 + (normalizedSize * 1.5); 
@@ -872,7 +908,7 @@
                     xPosition = (gridX * 80 + Math.random() * 20) + Math.random() * 10;
                     yPosition = (gridY * 80 + Math.random() * 20) + Math.random() * 10;
                 } else {
-                    const spawnAbove = Math.random() < 0.55;
+                    const spawnAbove = Math.random() < 0.45;
                     
                     if (spawnAbove) {
                         const viewportHeight = window.innerHeight;
@@ -897,12 +933,7 @@
                 
                 let delay = 0;
                 let animationDelay = 0;
-                if (isInitial) {
-                    delay = Math.random() * 2;
-                    animationDelay = -(Math.random() * duration * 0.7);
-                } else {
-                    delay = Math.random() * 2;
-                }
+                delay = Math.random() * 2;
 
                 shape.style.left = `${xPosition}%`;
                 shape.style.top = `${yPosition}%`;
