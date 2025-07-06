@@ -157,6 +157,41 @@
         .focus\:ring-2:focus { ring: 2px; }
         .focus\:ring-blue-500:focus { ring-color: #3b82f6; }
         .resize-none { resize: none; }
+        
+        /* Custom canvas container for square aspect ratio */
+        .canvas-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 20px;
+            min-height: 0; /* Important for flex shrinking */
+        }
+        
+        .square-canvas {
+            width: min(calc(100vh - 160px), calc(100vw - 360px)); /* Account for sidebar and margins */
+            height: min(calc(100vh - 160px), calc(100vw - 360px));
+            max-width: 800px; /* Maximum size */
+            max-height: 800px;
+            min-width: 300px; /* Minimum size */
+            min-height: 300px;
+            aspect-ratio: 1;
+            cursor: move;
+            border: 1px solid #374151;
+            border-radius: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .square-canvas {
+                width: min(calc(100vh - 120px), calc(100vw - 40px));
+                height: min(calc(100vh - 120px), calc(100vw - 40px));
+                min-width: 250px;
+                min-height: 250px;
+            }
+            .canvas-container {
+                padding: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1037,6 +1072,39 @@ const HSV_PRESETS = [
     };
   }, [isAnimating]);
 
+  // Canvas resizing effect
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      // Get the actual displayed size of the canvas
+      const rect = canvas.getBoundingClientRect();
+      const size = Math.floor(rect.width);
+      
+      // Set the internal resolution to match the display size
+      if (canvas.width !== size || canvas.height !== size) {
+        canvas.width = size;
+        canvas.height = size;
+        renderCanvas(); // Re-render after size change
+      }
+    };
+
+    // Initial size update
+    updateCanvasSize();
+    
+    // Add resize listener
+    window.addEventListener('resize', updateCanvasSize);
+    
+    // Also check size periodically in case CSS changes
+    const sizeCheckInterval = setInterval(updateCanvasSize, 500);
+    
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+      clearInterval(sizeCheckInterval);
+    };
+  }, [renderCanvas]);
+
   // Render canvas when state changes
   useEffect(() => {
     renderCanvas();
@@ -1423,17 +1491,10 @@ const HSV_PRESETS = [
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 relative flex items-center justify-center">
+        <div className="canvas-container">
           <canvas
             ref={canvasRef}
-            width={600}
-            height={600}
-            className="max-w-full max-h-full cursor-move"
-            style={{
-              aspectRatio: '1',
-              width: 'auto',
-              height: 'auto'
-            }}
+            className="square-canvas"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
