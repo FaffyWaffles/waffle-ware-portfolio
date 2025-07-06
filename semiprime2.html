@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trial Division Error Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin: 20px 0;
+        }
+        .info {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .current-semiprime {
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Trial Division Error Pattern Analysis</h1>
+        
+        <div class="info">
+            <p><strong>Algorithm:</strong> For trial factor z, calculate y = floor(s/z) and compute error = s - (y × z)</p>
+            <p><strong>Full Normalization:</strong> Trial factor position (X) and error pattern (Y) both rescaled to 0–100%</p>
+            <p><strong>Discovery:</strong> Fully normalized patterns reveal universal mathematical structure across all semiprimes</p>
+        </div>
+
+        <button class="button" onclick="generateNewSemiprime()">Generate Random Semiprime & Analyze</button>
+
+        <div class="current-semiprime" id="currentInfo" style="display: none;">
+            <h3>Current Semiprime</h3>
+            <div id="semiprimeDetails"></div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="errorChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="derivativeChart"></canvas>
+        </div>
+
+        <div id="analysis" style="display: none;">
+            <h3>Pattern Analysis</h3>
+            <div id="analysisText"></div>
+        </div>
+    </div>
+
+    <script>
+        // Prime utilities
+        function isPrime(n) {
+            if (n < 2) return false;
+            if (n === 2) return true;
+            if (n % 2 === 0) return false;
+            for (let i = 3; i * i <= n; i += 2) {
+                if (n % i === 0) return false;
+            }
+            return true;
+        }
+
+        function getRandomPrime(min, max) {
+            let candidate;
+            do {
+                candidate = Math.floor(Math.random() * (max - min)) + min;
+                if (candidate % 2 === 0) candidate++;
+            } while (!isPrime(candidate));
+            return candidate;
+        }
+
+        function generateRandomSemiprime() {
+            const p1 = getRandomPrime(1000, 5000);
+            const p2 = getRandomPrime(1000, 5000);
+            return {
+                semiprime: p1 * p2,
+                factor1: Math.min(p1, p2),
+                factor2: Math.max(p1, p2)
+            };
+        }
+
+        function calculateErrors(semiprime) {
+            const s = semiprime.semiprime;
+            const maxZ = Math.floor(Math.sqrt(s));
+            const zValues = [];
+            const normalizedZPositions = [];
+            const errors = [];
+            const rawErrorPercentages = [];
+
+            for (let z = 1; z <= maxZ; z++) {
+                const y = Math.floor(s / z);
+                const error = s - (y * z);
+                const errorPercent = (error / s) * 100;
+                const zPositionPercent = ((maxZ - z) / maxZ) * 100;
+
+                zValues.push(z);
+                normalizedZPositions.push(zPositionPercent);
+                errors.push(error);
+                rawErrorPercentages.push(errorPercent);
+            }
+
+            // Rescale error% so max becomes 100%
+            const maxErrorPct = Math.max(...rawErrorPercentages);
+            const errorPercentages = rawErrorPercentages.map(pct => (pct / maxErrorPct) * 100);
+
+            // Compute derivative on scaled error percentages
+            const derivatives = [];
+            const derivativeZPositions = [];
+            for (let i = 0; i < errorPercentages.length - 1; i++) {
+                derivatives.push(errorPercentages[i + 1] - errorPercentages[i]);
+                derivativeZPositions.push(normalizedZPositions[i]);
+            }
+
+            return { 
+                zValues, 
+                normalizedZPositions,
+                errors, 
+                errorPercentages, 
+                derivatives,
+                derivativeZPositions,
+                maxZ, 
+                semiprime: s 
+            };
+        }
+
+        // Chart setup
+        let currentChart = null;
+        let currentDerivativeChart = null;
+
+        function createCharts(data) {
+            const zeroErrorZPositions = [];
+            data.errorPercentages.forEach((pct, i) => {
+                if (pct === 0) zeroErrorZPositions.push(data.normalizedZPositions[i]);
+            });
+
+            // Error chart
+            const ctx = document.getElementById('errorChart').getContext('2d');
+            if (currentChart) currentChart.destroy();
+
+            const errorDatasets = [{
+                label: `Error % (scaled) for semiprime ${data.semiprime.toLocaleString()}`,
+                data: data.errorPercentages,
+                borderColor: '#2E86AB',
+                backgroundColor: 'rgba(46, 134, 171, 0.1)',
+                pointRadius: 0,
+                borderWidth: 1,
+                fill: false
+            }];
+
+            if (zeroErrorZPositions.length) {
+                errorDatasets.push({
+                    label: 'Perfect Factors (Error = 0%)',
+                    data: zeroErrorZPositions.map(zPos => ({ x: zPos, y: 0 })),
+                    borderColor: '#FF6B35',
+                    backgroundColor: '#FF6B35',
+                    pointRadius: 8,
+                    showLine: false,
+                    pointStyle: 'star'
+                });
+            }
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.normalizedZPositions,
+                    datasets: errorDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Error Pattern (0–100% scaled)' },
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Trial Factor Position (% of range)' } },
+                        y: { title: { display: true, text: 'Error (% scaled)' }, beginAtZero: true }
+                    },
+                    elements: { line: { tension: 0 } },
+                    interaction: { intersect: false, mode: 'index' }
+                }
+            });
+
+            // Derivative chart
+            const dctx = document.getElementById('derivativeChart').getContext('2d');
+            if (currentDerivativeChart) currentDerivativeChart.destroy();
+
+            const derivDatasets = [{
+                label: 'Derivative (Δ Error %)',
+                data: data.derivatives,
+                borderColor: '#DC3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                pointRadius: 0,
+                borderWidth: 1,
+                fill: false
+            }];
+
+            if (zeroErrorZPositions.length) {
+                derivDatasets.push({
+                    label: 'Factor Locations',
+                    data: zeroErrorZPositions.map(zPos => {
+                        const idx = data.derivativeZPositions.findIndex(dz => Math.abs(dz - zPos) < 1e-6);
+                        return { x: zPos, y: idx >= 0 ? data.derivatives[idx] : 0 };
+                    }),
+                    borderColor: '#FF6B35',
+                    backgroundColor: '#FF6B35',
+                    pointRadius: 6,
+                    showLine: false,
+                    pointStyle: 'triangle'
+                });
+            }
+
+            currentDerivativeChart = new Chart(dctx, {
+                type: 'line',
+                data: {
+                    labels: data.derivativeZPositions,
+                    datasets: derivDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Derivative of Error Pattern' },
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Trial Factor Position (% of range)' } },
+                        y: { title: { display: true, text: 'Rate of Change (Δ%)' } }
+                    },
+                    elements: { line: { tension: 0 } },
+                    interaction: { intersect: false, mode: 'index' }
+                }
+            });
+        }
+
+        function analyzePattern(data) {
+            const zeroErrors = [];
+            data.errors.forEach((e, i) => {
+                if (e === 0) zeroErrors.push({ z: data.zValues[i], otherFactor: data.semiprime / data.zValues[i] });
+            });
+            const maxErr = Math.max(...data.errorPercentages);
+            const avgErr = data.errorPercentages.reduce((a, b) => a + b, 0) / data.errorPercentages.length;
+            const maxDer = Math.max(...data.derivatives);
+            const minDer = Math.min(...data.derivatives);
+            const avgDer = data.derivatives.reduce((a, b) => a + b, 0) / data.derivatives.length;
+            return { zeroErrors, maxErrorPercent: maxErr, avgErrorPercent: avgErr, maxDerivative: maxDer, minDerivative: minDer, avgDerivative: avgDer, totalTrials: data.zValues.length };
+        }
+
+        function generateNewSemiprime() {
+            const semi = generateRandomSemiprime();
+            const data = calculateErrors(semi);
+            const stats = analyzePattern(data);
+
+            document.getElementById('currentInfo').style.display = 'block';
+            document.getElementById('semiprimeDetails').innerHTML = `
+                <strong>Semiprime:</strong> ${semi.semiprime.toLocaleString()}<br>
+                <strong>Factors:</strong> ${semi.factor1} × ${semi.factor2}<br>
+                <strong>Search Range:</strong> z from 1 to ${data.maxZ.toLocaleString()}
+            `;
+
+            createCharts(data);
+
+            document.getElementById('analysis').style.display = 'block';
+            let html = `
+                <p><strong>Pattern Analysis:</strong></p>
+                <ul>
+                    <li><strong>Max Error:</strong> ${stats.maxErrorPercent.toFixed(2)}%</li>
+                    <li><strong>Avg Error:</strong> ${stats.avgErrorPercent.toFixed(2)}%</li>
+                    <li><strong>Total Trials:</strong> ${stats.totalTrials}</li>
+                </ul>
+                <p><strong>Derivative Analysis:</strong></p>
+                <ul>
+                    <li><strong>Max Δ:</strong> ${stats.maxDerivative.toFixed(2)}%</li>
+                    <li><strong>Min Δ:</strong> ${stats.minDerivative.toFixed(2)}%</li>
+                    <li><strong>Avg Δ:</strong> ${stats.avgDerivative.toFixed(2)}%</li>
+                </ul>
+            `;
+            if (stats.zeroErrors.length) {
+                html += `<p><strong>Perfect Factors:</strong> `;
+                stats.zeroErrors.forEach(zf => html += `z=${zf.z} (${zf.z}×${zf.otherFactor}) `);
+                html += `</p>`;
+            }
+            document.getElementById('analysisText').innerHTML = html;
+        }
+
+        window.onload = generateNewSemiprime;
+    </script>
+</body>
+</html>

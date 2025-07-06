@@ -1,0 +1,1399 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Play, Pause, Camera, RotateCcw, ZoomIn, ZoomOut, Settings, Book, Activity } from 'lucide-react';
+
+// Mathematical utilities for modular forms
+const mathUtils = {
+  // Complex number operations
+  complex: {
+    add: (a, b) => ({ 
+      re: a.re + b.re, 
+      im: a.im + b.im 
+    }),
+    mult: (a, b) => ({ 
+      re: a.re * b.re - a.im * b.im, 
+      im: a.re * b.im + a.im * b.re 
+    }),
+    div: (a, b) => {
+      const denom = b.re * b.re + b.im * b.im;
+      if (denom === 0) return { re: NaN, im: NaN };
+      return {
+        re: (a.re * b.re + a.im * b.im) / denom,
+        im: (a.im * b.re - a.re * b.im) / denom
+      };
+    },
+    abs: (z) => Math.sqrt(z.re * z.re + z.im * z.im),
+    arg: (z) => Math.atan2(z.im, z.re),
+    exp: (z) => {
+      if (z.re > 700) return { re: Infinity, im: Infinity }; // Prevent overflow
+      const r = Math.exp(z.re);
+      return { re: r * Math.cos(z.im), im: r * Math.sin(z.im) };
+    },
+    isValid: (z) => isFinite(z.re) && isFinite(z.im)
+  },
+
+  // Cayley disk mapping: τ → (τ - i)/(τ + i)  
+  toCayleyDisk: (tau) => {
+    if (!mathUtils.complex.isValid(tau)) return { re: NaN, im: NaN };
+    
+    const num = { re: tau.re, im: tau.im - 1 };
+    const den = { re: tau.re, im: tau.im + 1 };
+    return mathUtils.complex.div(num, den);
+  },
+
+  // Inverse Cayley disk mapping: w → i(1+w)/(1-w)
+  fromCayleyDisk: (w) => {
+    if (!mathUtils.complex.isValid(w) || mathUtils.complex.abs(w) >= 0.99) {
+      return { re: NaN, im: NaN };
+    }
+    
+    const num = { re: 1 + w.re, im: w.im };
+    const den = { re: 1 - w.re, im: -w.im };
+    const result = mathUtils.complex.div(num, den);
+    return { re: -result.im, im: result.re }; // multiply by i
+  },
+
+  // Eisenstein series E4(τ) - more stable implementation
+  eisensteinE4: (tau, nTerms = 12) => {
+    if (!mathUtils.complex.isValid(tau) || tau.im <= 0.01) {
+      return { re: NaN, im: NaN };
+    }
+
+    let sum = { re: 1, im: 0 };
+    const qExp = mathUtils.complex.mult({ re: 0, im: 2 * Math.PI }, tau);
+    const q = mathUtils.complex.exp(qExp);
+    
+    // Check if q is too large (would cause overflow)
+    if (!mathUtils.complex.isValid(q) || mathUtils.complex.abs(q) > 0.99) {
+      return sum; // Return just the constant term
+    }
+    
+    let qPower = { re: 1, im: 0 };
+    
+    for (let n = 1; n <= nTerms; n++) {
+      qPower = mathUtils.complex.mult(qPower, q);
+      
+      if (!mathUtils.complex.isValid(qPower) || mathUtils.complex.abs(qPower) < 1e-15) {
+        break; // Series converged or underflowed
+      }
+      
+      const sigma3 = mathUtils.sigma(n, 3);
+      const term = mathUtils.complex.mult({ re: 240 * sigma3, im: 0 }, qPower);
+      sum = mathUtils.complex.add(sum, term);
+      
+      if (!mathUtils.complex.isValid(sum)) {
+        return { re: NaN, im: NaN };
+      }
+    }
+    
+    return sum;
+  },
+
+  // More efficient divisor function
+  sigma: (n, k) => {
+    if (n <= 0 || !isFinite(n)) return 0;
+    let sum = 0;
+    const sqrtN = Math.sqrt(n);
+    
+    for (let d = 1; d <= sqrtN; d++) {
+      if (n % d === 0) {
+        sum += Math.pow(d, k);
+        if (d !== sqrtN) { // Avoid double counting perfect squares
+          sum += Math.pow(n / d, k);
+        }
+      }
+    }
+    return sum;
+  },
+
+  // Simpler test function that's more numerically stable
+  testFunction: (tau) => {
+    if (!mathUtils.complex.isValid(tau) || tau.im <= 0.01) {
+      return { re: NaN, im: NaN };
+    }
+    
+    // Simple example: f(τ) = sin(2πτ)
+    const arg = mathUtils.complex.mult({ re: 0, im: 2 * Math.PI }, tau);
+    const expPos = mathUtils.complex.exp(arg);
+    const expNeg = mathUtils.complex.exp({ re: -arg.re, im: -arg.im });
+    
+    const sin = mathUtils.complex.mult(
+      { re: 0, im: -0.5 },
+      mathUtils.complex.add(expPos, mathUtils.complex.mult({ re: -1, im: 0 }, expNeg))
+    );
+    
+    return mathUtils.complex.isValid(sin) ? sin : { re: 0, im: 0 };
+  },
+
+  // Custom modular form from Fourier coefficients
+  customModularForm: (tau, coefficients, maxTerms = 20) => {
+    if (!mathUtils.complex.isValid(tau) || tau.im <= 0.01) {
+      return { re: NaN, im: NaN };
+    }
+
+    // f(τ) = Σ a_n * q^n where q = e^(2πiτ)
+    const qExp = mathUtils.complex.mult({ re: 0, im: 2 * Math.PI }, tau);
+    const q = mathUtils.complex.exp(qExp);
+    
+    // Check if q is reasonable
+    if (!mathUtils.complex.isValid(q) || mathUtils.complex.abs(q) > 0.99) {
+      return coefficients.length > 0 ? { re: coefficients[0], im: 0 } : { re: 0, im: 0 };
+    }
+
+    let sum = { re: 0, im: 0 };
+    let qPower = { re: 1, im: 0 }; // q^0 = 1
+    
+    const numTerms = Math.min(coefficients.length, maxTerms);
+    
+    for (let n = 0; n < numTerms; n++) {
+      if (coefficients[n] !== 0) {
+        const term = mathUtils.complex.mult({ re: coefficients[n], im: 0 }, qPower);
+        sum = mathUtils.complex.add(sum, term);
+      }
+      
+      // Early termination if series is converging
+      if (n > 0 && mathUtils.complex.abs(qPower) < 1e-15) {
+        break;
+      }
+      
+      // Prepare for next iteration
+      if (n < numTerms - 1) {
+        qPower = mathUtils.complex.mult(qPower, q);
+      }
+      
+      if (!mathUtils.complex.isValid(sum) || !mathUtils.complex.isValid(qPower)) {
+        break;
+      }
+    }
+    
+    return mathUtils.complex.isValid(sum) ? sum : { re: 0, im: 0 };
+  },
+
+  // Parse coefficient string
+  parseCoefficients: (coeffString) => {
+    try {
+      return coeffString
+        .split(',')
+        .map(s => {
+          const num = parseFloat(s.trim());
+          return isNaN(num) ? 0 : num;
+        })
+        .filter((_, i) => i < 50); // Limit to 50 terms
+    } catch (e) {
+      return [1]; // Default to just constant term
+    }
+  }
+};
+
+const PREDEFINED_FORMS = [
+  { id: 'test', name: 'Test Function', weight: 1, level: 1, func: mathUtils.testFunction, description: 'Simple test function: sin(2πτ)' },
+  { 
+    id: 'e4', 
+    name: 'E₄ (Eisenstein)', 
+    weight: 4, 
+    level: 1,
+    func: mathUtils.eisensteinE4, 
+    description: 'Weight 4 Eisenstein series',
+    coefficients: [1, 240, 2160, 6720, 17520, 30240, 60480, 82560, 140400]
+  },
+  {
+    id: 'delta',
+    name: 'Δ (Discriminant)',
+    weight: 12,
+    level: 1,
+    func: (tau) => mathUtils.customModularForm(tau, [0, 1, -24, 252, -1472, 4830, -6048, -16744, 84480]),
+    description: 'Ramanujan discriminant function',
+    coefficients: [0, 1, -24, 252, -1472, 4830, -6048, -16744, 84480],
+    isCustom: false
+  }
+];
+
+const HSV_PRESETS = [
+  { name: 'Classic', huePoints: [0, 60, 120, 180, 240, 300] },
+  { name: 'Cool', huePoints: [180, 200, 220, 240, 260, 280] },
+  { name: 'Warm', huePoints: [0, 30, 45, 60, 90, 120] }
+];
+
+function ModularFormsPlayground() {
+  // Core state
+  const canvasRef = useRef(null);
+  const [selectedForm, setSelectedForm] = useState(PREDEFINED_FORMS[0]);
+  const [viewMode, setViewMode] = useState('cayley'); // 'cayley' or 'rectangular'
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  
+  // Style controls
+  const [huePreset, setHuePreset] = useState(HSV_PRESETS[0]);
+  const [ringSpacing, setRingSpacing] = useState(0.5);
+  const [resolution, setResolution] = useState(2); // 1 = highest quality, 4 = lowest quality
+  const [showOverlays, setShowOverlays] = useState({
+    fundamentalDomain: true,
+    geodesicGrid: true,
+    zeros: true,
+    contours: false
+  });
+
+  // Animation state
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationType, setAnimationType] = useState('translation');
+  const [animationSpeed, setAnimationSpeed] = useState(1);
+  const [animationTime, setAnimationTime] = useState(0);
+
+  // Knowledge drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('fourier');
+  const [hoverPoint, setHoverPoint] = useState(null);
+  const [hoverValue, setHoverValue] = useState(null);
+
+  // Custom form state
+  const [customFormTab, setCustomFormTab] = useState('library'); // 'library' or 'custom'
+  const [customForm, setCustomForm] = useState({
+    name: 'My Custom Form',
+    weight: 2,
+    level: 1,
+    character: 'trivial',
+    coefficients: '1, 24, 324, 3200, 25650', // a_0, a_1, a_2, a_3, a_4, ...
+    description: 'Custom modular form'
+  });
+  const [customFormError, setCustomFormError] = useState('');
+  const [savedCustomForms, setSavedCustomForms] = useState([]);
+
+  // Canvas rendering
+  const renderCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    // Grid size for sampling
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data;
+    
+    // Sample every NxN pixel block based on resolution setting
+    for (let px = 0; px < width; px += resolution) {
+      for (let py = 0; py < height; py += resolution) {
+        // Convert pixel to complex coordinate
+        let tau;
+        if (viewMode === 'cayley') {
+          // Ensure aspect ratio is preserved by using the same scale for both axes
+          const scale = Math.min(width, height) / 2;
+          const w = {
+            re: ((px - width/2) / scale) * zoom + center.x,
+            im: ((height/2 - py) / scale) * zoom + center.y
+          };
+          // Skip points outside or near the unit circle
+          if (mathUtils.complex.abs(w) >= 0.95) {
+            // Fill with black for outside the disk
+            for (let dx = 0; dx < resolution && px + dx < width; dx++) {
+              for (let dy = 0; dy < resolution && py + dy < height; dy++) {
+                const idx = ((py + dy) * width + (px + dx)) * 4;
+                data[idx] = 0;     // R
+                data[idx + 1] = 0; // G
+                data[idx + 2] = 0; // B
+                data[idx + 3] = 255; // A
+              }
+            }
+            continue;
+          }
+          tau = mathUtils.fromCayleyDisk(w);
+        } else {
+          tau = {
+            re: (px / width - 0.5) * 4 * zoom + center.x,
+            im: ((height - py) / height - 0.5) * 4 * zoom + center.y + 2
+          };
+          // Skip points in lower half-plane
+          if (tau.im <= 0.05) {
+            for (let dx = 0; dx < resolution && px + dx < width; dx++) {
+              for (let dy = 0; dy < resolution && py + dy < height; dy++) {
+                const idx = ((py + dy) * width + (px + dx)) * 4;
+                data[idx] = 0;
+                data[idx + 1] = 0;
+                data[idx + 2] = 0;
+                data[idx + 3] = 255;
+              }
+            }
+            continue;
+          }
+        }
+
+        // Check if tau is valid
+        if (!mathUtils.complex.isValid(tau)) {
+          continue;
+        }
+
+        // Apply animation transformation
+        if (isAnimating) {
+          const t = animationTime * animationSpeed * 0.005;
+          if (animationType === 'translation') {
+            // Modular translation: τ → τ + 1
+            tau.re += t;
+          } else if (animationType === 'rotation') {
+            if (viewMode === 'cayley') {
+              // In Cayley disk: rotate around center (preserves unit disk)
+              const w = mathUtils.toCayleyDisk(tau);
+              if (mathUtils.complex.isValid(w) && mathUtils.complex.abs(w) < 0.95) {
+                const rotated = {
+                  re: w.re * Math.cos(t) - w.im * Math.sin(t),
+                  im: w.re * Math.sin(t) + w.im * Math.cos(t)
+                };
+                tau = mathUtils.fromCayleyDisk(rotated);
+              }
+            } else {
+              // In upper half-plane: rotate around point i (preserves upper half-plane)
+              // τ → e^(it)(τ - i) + i
+              const shifted = { re: tau.re, im: tau.im - 1 }; // τ - i
+              const rotated = {
+                re: shifted.re * Math.cos(t) - shifted.im * Math.sin(t),
+                im: shifted.re * Math.sin(t) + shifted.im * Math.cos(t)
+              };
+              tau = { re: rotated.re, im: rotated.im + 1 }; // + i
+            }
+          } else if (animationType === 'inversion') {
+            // Modular inversion: τ → -1/τ (mixed with identity)
+            const weight = 0.5 + 0.5 * Math.cos(t);
+            const inverted = mathUtils.complex.div({ re: -1, im: 0 }, tau);
+            if (mathUtils.complex.isValid(inverted)) {
+              tau = {
+                re: weight * tau.re + (1 - weight) * inverted.re,
+                im: weight * tau.im + (1 - weight) * inverted.im
+              };
+            }
+          }
+        }
+
+        // Evaluate modular form
+        const value = selectedForm.func(tau);
+        
+        // Handle NaN or invalid values
+        if (!mathUtils.complex.isValid(value)) {
+          // Fill with a distinctive color for NaN values
+          for (let dx = 0; dx < resolution && px + dx < width; dx++) {
+            for (let dy = 0; dy < resolution && py + dy < height; dy++) {
+              const idx = ((py + dy) * width + (px + dx)) * 4;
+              data[idx] = 64;     // Dark red
+              data[idx + 1] = 0;
+              data[idx + 2] = 64;
+              data[idx + 3] = 255;
+            }
+          }
+          continue;
+        }
+
+        const magnitude = mathUtils.complex.abs(value);
+        const phase = mathUtils.complex.arg(value);
+
+        // Convert to HSV color with better handling of extreme values
+        const hue = ((phase + Math.PI) / (2 * Math.PI)) * 360;
+        const saturation = Math.min(1, Math.tanh(magnitude * 0.5));
+        const logMag = Math.log(Math.max(magnitude, 1e-10));
+        const brightness = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(logMag / ringSpacing));
+
+        // Convert HSV to RGB
+        const rgb = hsvToRgb(hue, saturation, brightness);
+        
+        // Fill NxN pixel block based on resolution
+        for (let dx = 0; dx < resolution && px + dx < width; dx++) {
+          for (let dy = 0; dy < resolution && py + dy < height; dy++) {
+            const idx = ((py + dy) * width + (px + dx)) * 4;
+            data[idx] = rgb.r;
+            data[idx + 1] = rgb.g;
+            data[idx + 2] = rgb.b;
+            data[idx + 3] = 255;
+          }
+        }
+      }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Draw contour lines if enabled
+    if (showOverlays.contours) {
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.8;
+      
+      // Draw magnitude contours at regular intervals
+      const contourLevels = [0.1, 0.5, 1, 2, 5, 10, 20, 50];
+      
+      // Sample points and mark those near contour levels
+      for (let px = 0; px < width; px += Math.max(1, resolution)) {
+        for (let py = 0; py < height; py += Math.max(1, resolution)) {
+          let tau;
+          if (viewMode === 'cayley') {
+            const scale = Math.min(width, height) / 2;
+            const w = {
+              re: ((px - width/2) / scale) * zoom + center.x,
+              im: ((height/2 - py) / scale) * zoom + center.y
+            };
+            if (mathUtils.complex.abs(w) >= 0.95) continue;
+            tau = mathUtils.fromCayleyDisk(w);
+          } else {
+            tau = {
+              re: (px / width - 0.5) * 4 * zoom + center.x,
+              im: ((height - py) / height - 0.5) * 4 * zoom + center.y + 2
+            };
+            if (tau.im <= 0.05) continue;
+          }
+          
+          if (!mathUtils.complex.isValid(tau)) continue;
+          
+          // Apply animation transformation (simplified for contours)
+          if (isAnimating) {
+            const t = animationTime * animationSpeed * 0.005;
+            if (animationType === 'translation') {
+              tau.re += t;
+            } else if (animationType === 'rotation') {
+              if (viewMode === 'cayley') {
+                const w = mathUtils.toCayleyDisk(tau);
+                if (mathUtils.complex.isValid(w) && mathUtils.complex.abs(w) < 0.95) {
+                  const rotated = {
+                    re: w.re * Math.cos(t) - w.im * Math.sin(t),
+                    im: w.re * Math.sin(t) + w.im * Math.cos(t)
+                  };
+                  tau = mathUtils.fromCayleyDisk(rotated);
+                }
+              } else {
+                const shifted = { re: tau.re, im: tau.im - 1 };
+                const rotated = {
+                  re: shifted.re * Math.cos(t) - shifted.im * Math.sin(t),
+                  im: shifted.re * Math.sin(t) + shifted.im * Math.cos(t)
+                };
+                tau = { re: rotated.re, im: rotated.im + 1 };
+              }
+            }
+          }
+          
+          const value = selectedForm.func(tau);
+          if (!mathUtils.complex.isValid(value)) continue;
+          
+          const magnitude = mathUtils.complex.abs(value);
+          
+          // Check if magnitude is close to any contour level
+          for (const level of contourLevels) {
+            const logMag = Math.log(Math.max(magnitude, 0.01));
+            const logLevel = Math.log(level);
+            const tolerance = 0.1; // Adjust thickness of contour lines
+            
+            if (Math.abs(logMag - logLevel) < tolerance) {
+              // Draw a small dot for this contour point
+              ctx.fillRect(px, py, Math.max(1, resolution), Math.max(1, resolution));
+              break;
+            }
+          }
+        }
+      }
+      
+      ctx.globalAlpha = 1.0;
+    }
+    
+    // Draw zeros and poles if enabled
+    if (showOverlays.zeros) {
+      const step = Math.max(4, resolution * 2);
+      
+      for (let px = 0; px < width; px += step) {
+        for (let py = 0; py < height; py += step) {
+          let tau;
+          if (viewMode === 'cayley') {
+            const scale = Math.min(width, height) / 2;
+            const w = {
+              re: ((px - width/2) / scale) * zoom + center.x,
+              im: ((height/2 - py) / scale) * zoom + center.y
+            };
+            if (mathUtils.complex.abs(w) >= 0.95) continue;
+            tau = mathUtils.fromCayleyDisk(w);
+          } else {
+            tau = {
+              re: (px / width - 0.5) * 4 * zoom + center.x,
+              im: ((height - py) / height - 0.5) * 4 * zoom + center.y + 2
+            };
+            if (tau.im <= 0.05) continue;
+          }
+          
+          if (!mathUtils.complex.isValid(tau)) continue;
+          
+          // Apply animation transformation (simplified)
+          if (isAnimating) {
+            const t = animationTime * animationSpeed * 0.005;
+            if (animationType === 'translation') {
+              tau.re += t;
+            } else if (animationType === 'rotation') {
+              if (viewMode === 'cayley') {
+                const w = mathUtils.toCayleyDisk(tau);
+                if (mathUtils.complex.isValid(w) && mathUtils.complex.abs(w) < 0.95) {
+                  const rotated = {
+                    re: w.re * Math.cos(t) - w.im * Math.sin(t),
+                    im: w.re * Math.sin(t) + w.im * Math.cos(t)
+                  };
+                  tau = mathUtils.fromCayleyDisk(rotated);
+                }
+              }
+            }
+          }
+          
+          const value = selectedForm.func(tau);
+          if (!mathUtils.complex.isValid(value)) continue;
+          
+          const magnitude = mathUtils.complex.abs(value);
+          
+          // Detect zeros (very small magnitude)
+          if (magnitude < 0.01) {
+            ctx.fillStyle = '#00ff00'; // Bright green for zeros
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Add a small cross
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px - 5, py);
+            ctx.lineTo(px + 5, py);
+            ctx.moveTo(px, py - 5);
+            ctx.lineTo(px, py + 5);
+            ctx.stroke();
+          }
+          
+          // Detect poles (very large magnitude)
+          else if (magnitude > 100) {
+            ctx.fillStyle = '#ff0000'; // Bright red for poles
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Add a small circle
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py, 6, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+          
+          // Detect near-zeros (small but not tiny)
+          else if (magnitude < 0.1) {
+            ctx.fillStyle = '#88ff88'; // Light green for near-zeros
+            ctx.beginPath();
+            ctx.arc(px, py, 2, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+          
+          // Detect near-poles (large magnitude)
+          else if (magnitude > 20) {
+            ctx.fillStyle = '#ff8888'; // Light red for near-poles
+            ctx.beginPath();
+            ctx.arc(px, py, 2, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+        }
+      }
+    }
+    
+    // Draw overlays
+    if (showOverlays.fundamentalDomain) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      
+      if (viewMode === 'cayley') {
+        ctx.beginPath();
+        
+        // Always draw a perfect circle on screen, regardless of aspect ratio
+        // Center the circle in the canvas
+        const circleCenterX = width/2 - center.x * Math.min(width, height) / 2 / zoom;
+        const circleCenterY = height/2 + center.y * Math.min(width, height) / 2 / zoom;
+        
+        // Use the smaller dimension to ensure the circle fits and stays circular
+        const circleRadius = Math.min(width, height) / 2 / zoom;
+        
+        // Only draw if the circle is visible and has reasonable size
+        if (circleRadius > 1) {
+          ctx.arc(circleCenterX, circleCenterY, circleRadius, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      } else {
+        // Rectangular mode - draw fundamental domain boundaries
+        // Vertical lines at Re(τ) = -1/2 and Re(τ) = 1/2
+        const leftX = width * ((-0.5 - center.x) / (4 * zoom) + 0.5);
+        const rightX = width * ((0.5 - center.x) / (4 * zoom) + 0.5);
+        
+        if (leftX >= 0 && leftX <= width) {
+          ctx.beginPath();
+          ctx.moveTo(leftX, 0);
+          ctx.lineTo(leftX, height);
+          ctx.stroke();
+        }
+        
+        if (rightX >= 0 && rightX <= width) {
+          ctx.beginPath();
+          ctx.moveTo(rightX, 0);
+          ctx.lineTo(rightX, height);
+          ctx.stroke();
+        }
+        
+        // Unit semicircle |τ| = 1, Im(τ) > 0
+        const unitCircleY = height * (1 - (1 - center.y) / (4 * zoom) + 0.5);
+        const circleRadius = width * (1 / (4 * zoom));
+        
+        if (unitCircleY >= 0 && unitCircleY <= height && circleRadius > 1) {
+          ctx.beginPath();
+          ctx.arc(width/2 - center.x * width / (4 * zoom), unitCircleY, circleRadius, 0, Math.PI);
+          ctx.stroke();
+        }
+      }
+      
+      ctx.setLineDash([]);
+    }
+    
+    // Draw geodesic grid if enabled
+    if (showOverlays.geodesicGrid && viewMode === 'cayley') {
+      ctx.strokeStyle = '#666666';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      
+      // Always use perfect circles for the geodesic grid
+      const gridCenterX = width/2 - center.x * Math.min(width, height) / 2 / zoom;
+      const gridCenterY = height/2 + center.y * Math.min(width, height) / 2 / zoom;
+      
+      const maxRadius = Math.min(width, height) / 2 / zoom;
+      
+      // Draw radial lines from center
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 12) {
+        ctx.beginPath();
+        ctx.moveTo(gridCenterX, gridCenterY);
+        ctx.lineTo(
+          gridCenterX + Math.cos(angle) * maxRadius * 0.95,
+          gridCenterY + Math.sin(angle) * maxRadius * 0.95
+        );
+        ctx.stroke();
+      }
+      
+      // Draw concentric circles - always perfectly circular
+      for (let r = 0.2; r < 1; r += 0.2) {
+        const circleRadius = r * maxRadius;
+        if (circleRadius > 2) {
+          ctx.beginPath();
+          ctx.arc(gridCenterX, gridCenterY, circleRadius, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      }
+      
+      ctx.setLineDash([]);
+    }
+    
+  }, [selectedForm, viewMode, zoom, center, showOverlays, ringSpacing, resolution, isAnimating, animationType, animationSpeed, animationTime]);
+
+  // Validate and create custom form
+  const validateCustomForm = () => {
+    try {
+      const coeffs = mathUtils.parseCoefficients(customForm.coefficients);
+      if (coeffs.length === 0) {
+        setCustomFormError('Please enter at least one coefficient');
+        return false;
+      }
+      
+      if (customForm.weight < 0 || customForm.weight > 20) {
+        setCustomFormError('Weight should be between 0 and 20');
+        return false;
+      }
+      
+      if (customForm.level < 1 || customForm.level > 100) {
+        setCustomFormError('Level should be between 1 and 100');
+        return false;
+      }
+      
+      setCustomFormError('');
+      return true;
+    } catch (e) {
+      setCustomFormError('Invalid input format');
+      return false;
+    }
+  };
+
+  const createCustomFormFunction = (coeffs) => {
+    return (tau) => mathUtils.customModularForm(tau, coeffs);
+  };
+
+  const addCustomForm = () => {
+    if (!validateCustomForm()) return;
+    
+    const coeffs = mathUtils.parseCoefficients(customForm.coefficients);
+    const newForm = {
+      id: `custom_${Date.now()}`,
+      name: customForm.name || 'Custom Form',
+      weight: customForm.weight,
+      level: customForm.level,
+      func: createCustomFormFunction(coeffs),
+      description: `${customForm.description} (Weight ${customForm.weight}, Level ${customForm.level})`,
+      coefficients: coeffs,
+      isCustom: true
+    };
+    
+    setSavedCustomForms(prev => [...prev, newForm]);
+    setSelectedForm(newForm);
+    setCustomFormTab('library');
+  };
+
+  const deleteCustomForm = (formId) => {
+    setSavedCustomForms(prev => prev.filter(f => f.id !== formId));
+    if (selectedForm.id === formId) {
+      setSelectedForm(PREDEFINED_FORMS[0]);
+    }
+  };
+
+  // HSV to RGB conversion
+  function hsvToRgb(h, s, v) {
+    const c = v * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = v - c;
+    
+    let r, g, b;
+    if (h < 60) { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+    
+    return {
+      r: Math.round((r + m) * 255),
+      g: Math.round((g + m) * 255),
+      b: Math.round((b + m) * 255)
+    };
+  }
+
+  // Mouse handlers
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setLastMousePos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Update hover point and calculate value
+    let tau;
+    if (viewMode === 'cayley') {
+      // Use the same coordinate system as rendering
+      const scale = Math.min(canvas.width, canvas.height) / 2;
+      const w = {
+        re: ((x - canvas.width/2) / scale) * zoom + center.x,
+        im: ((canvas.height/2 - y) / scale) * zoom + center.y
+      };
+      if (mathUtils.complex.abs(w) < 0.95) {
+        tau = mathUtils.fromCayleyDisk(w);
+        if (mathUtils.complex.isValid(tau) && tau.im > 0.01) {
+          setHoverPoint(tau);
+          const value = selectedForm.func(tau);
+          setHoverValue(mathUtils.complex.isValid(value) ? value : null);
+        } else {
+          setHoverPoint(null);
+          setHoverValue(null);
+        }
+      } else {
+        setHoverPoint(null);
+        setHoverValue(null);
+      }
+    } else {
+      tau = {
+        re: (x / canvas.width - 0.5) * 4 * zoom + center.x,
+        im: ((canvas.height - y) / canvas.height - 0.5) * 4 * zoom + center.y + 2
+      };
+      if (tau.im > 0.05) {
+        setHoverPoint(tau);
+        const value = selectedForm.func(tau);
+        setHoverValue(mathUtils.complex.isValid(value) ? value : null);
+      } else {
+        setHoverPoint(null);
+        setHoverValue(null);
+      }
+    }
+
+    if (isDragging) {
+      if (viewMode === 'cayley') {
+        // Use consistent coordinate scaling for dragging
+        const scale = Math.min(canvas.width, canvas.height) / 2;
+        const dx = (e.clientX - lastMousePos.x) / scale * zoom;
+        const dy = (e.clientY - lastMousePos.y) / scale * zoom;
+        setCenter(prev => ({ x: prev.x - dx, y: prev.y + dy }));
+      } else {
+        const dx = (e.clientX - lastMousePos.x) / canvas.width * zoom * 4;
+        const dy = (e.clientY - lastMousePos.y) / canvas.height * zoom * 4;
+        setCenter(prev => ({ x: prev.x - dx, y: prev.y + dy }));
+      }
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 1.1 : 0.9;
+    setZoom(prev => Math.max(0.1, Math.min(10, prev * factor)));
+  };
+
+  // Animation loop
+  useEffect(() => {
+    let animationFrame;
+    
+    if (isAnimating) {
+      const animate = () => {
+        setAnimationTime(prev => prev + 16); // ~60fps increment
+        animationFrame = requestAnimationFrame(animate);
+      };
+      animationFrame = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [isAnimating]);
+
+  // Render canvas when state changes
+  useEffect(() => {
+    renderCanvas();
+  }, [renderCanvas]);
+
+  return (
+    <div className="h-screen flex bg-gray-900 text-white">
+      {/* Left Sidebar - Control Rack */}
+      <div className="w-80 bg-gray-800 border-r border-gray-700 overflow-y-auto">
+        <div className="p-4 space-y-6">
+          {/* Choose Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Book className="w-5 h-5" />
+              Choose
+            </h3>
+            
+            {/* Tab Navigation */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCustomFormTab('library')}
+                className={`px-3 py-1 rounded text-sm ${
+                  customFormTab === 'library' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                Library
+              </button>
+              <button
+                onClick={() => setCustomFormTab('custom')}
+                className={`px-3 py-1 rounded text-sm ${
+                  customFormTab === 'custom' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+
+            {/* Library Tab */}
+            {customFormTab === 'library' && (
+              <div className="space-y-2">
+                {/* Predefined Forms */}
+                {PREDEFINED_FORMS.map(form => (
+                  <button
+                    key={form.id}
+                    onClick={() => setSelectedForm(form)}
+                    className={`w-full p-3 rounded text-left ${
+                      selectedForm.id === form.id ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    <div className="font-medium">{form.name}</div>
+                    <div className="text-sm text-gray-300">{form.description}</div>
+                  </button>
+                ))}
+                
+                {/* Custom Forms */}
+                {savedCustomForms.map(form => (
+                  <div key={form.id} className="relative">
+                    <button
+                      onClick={() => setSelectedForm(form)}
+                      className={`w-full p-3 rounded text-left pr-12 ${
+                        selectedForm.id === form.id ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="font-medium">{form.name}</div>
+                      <div className="text-sm text-gray-300">{form.description}</div>
+                    </button>
+                    <button
+                      onClick={() => deleteCustomForm(form.id)}
+                      className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-300"
+                      title="Delete custom form"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Custom Tab */}
+            {customFormTab === 'custom' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={customForm.name}
+                    onChange={(e) => setCustomForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full p-2 bg-gray-700 rounded text-sm"
+                    placeholder="My Custom Form"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Weight</label>
+                    <input
+                      type="number"
+                      value={customForm.weight}
+                      onChange={(e) => setCustomForm(prev => ({ ...prev, weight: parseInt(e.target.value) || 0 }))}
+                      className="w-full p-2 bg-gray-700 rounded text-sm"
+                      min="0"
+                      max="20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Level</label>
+                    <input
+                      type="number"
+                      value={customForm.level}
+                      onChange={(e) => setCustomForm(prev => ({ ...prev, level: parseInt(e.target.value) || 1 }))}
+                      className="w-full p-2 bg-gray-700 rounded text-sm"
+                      min="1"
+                      max="100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fourier Coefficients</label>
+                  <textarea
+                    value={customForm.coefficients}
+                    onChange={(e) => setCustomForm(prev => ({ ...prev, coefficients: e.target.value }))}
+                    className="w-full p-2 bg-gray-700 rounded text-sm h-20 font-mono"
+                    placeholder="1, 24, 324, 3200, 25650, ..."
+                  />
+                  <div className="text-xs text-gray-400 mt-1">
+                    Enter coefficients a₀, a₁, a₂, ... for f(τ) = Σ aₙqⁿ
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={customForm.description}
+                    onChange={(e) => setCustomForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full p-2 bg-gray-700 rounded text-sm"
+                    placeholder="Custom modular form description"
+                  />
+                </div>
+
+                {customFormError && (
+                  <div className="text-red-400 text-sm">{customFormError}</div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={addCustomForm}
+                    className="flex-1 p-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+                  >
+                    Create Form
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCustomForm({
+                        name: 'My Custom Form',
+                        weight: 2,
+                        level: 1,
+                        character: 'trivial',
+                        coefficients: '1, 24, 324, 3200, 25650',
+                        description: 'Custom modular form'
+                      });
+                      setCustomFormError('');
+                    }}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="text-xs text-gray-400 mt-2">
+                  <div className="font-medium mb-1">Examples:</div>
+                  <div>• Ramanujan τ: 1, -24, 252, -1472, 4830, ...</div>
+                  <div>• Simple series: 1, 1, 1, 1, 1, ...</div>
+                  <div>• Eisenstein E₂: 1, -24, -72, -96, -168, ...</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Style Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Style
+            </h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-2">Color Preset</label>
+                <select 
+                  value={huePreset.name}
+                  onChange={(e) => setHuePreset(HSV_PRESETS.find(p => p.name === e.target.value))}
+                  className="w-full p-2 bg-gray-700 rounded"
+                >
+                  {HSV_PRESETS.map(preset => (
+                    <option key={preset.name} value={preset.name}>{preset.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Ring Spacing</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="2"
+                  step="0.1"
+                  value={ringSpacing}
+                  onChange={(e) => setRingSpacing(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <div className="text-xs text-gray-400 mt-1">{ringSpacing}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Resolution</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="4"
+                  step="1"
+                  value={5 - resolution} // Reverse the slider direction
+                  onChange={(e) => setResolution(5 - parseInt(e.target.value))} // Reverse the value
+                  className="w-full"
+                />
+                <div className="text-xs text-gray-400 mt-1">
+                  {resolution === 4 ? 'Low (4x4)' : 
+                   resolution === 3 ? 'Medium (3x3)' : 
+                   resolution === 2 ? 'High (2x2)' : 'Ultra (1x1)'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Overlays</label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showOverlays.fundamentalDomain}
+                      onChange={(e) => setShowOverlays(prev => ({ ...prev, fundamentalDomain: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Fundamental Domain</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showOverlays.geodesicGrid}
+                      onChange={(e) => setShowOverlays(prev => ({ ...prev, geodesicGrid: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Geodesic Grid</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showOverlays.zeros}
+                      onChange={(e) => setShowOverlays(prev => ({ ...prev, zeros: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Zeros & Poles</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showOverlays.contours}
+                      onChange={(e) => setShowOverlays(prev => ({ ...prev, contours: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Contour Lines</span>
+                  </label>
+                  
+                  {showOverlays.zeros && (
+                    <div className="text-xs text-gray-400 mt-2 ml-6">
+                      <div>🟢 Green: Zeros (|f| ≈ 0)</div>
+                      <div>🔴 Red: Poles (|f| >> 0)</div>
+                      <div>○ Circles: Exact zeros/poles</div>
+                      <div>• Dots: Near zeros/poles</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Animate Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Animate
+            </h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-2">Transform Type</label>
+                <select 
+                  value={animationType}
+                  onChange={(e) => setAnimationType(e.target.value)}
+                  className="w-full p-2 bg-gray-700 rounded"
+                >
+                  <option value="translation">Translation (τ → τ + t)</option>
+                  <option value="rotation">Rotation (around i or disk center)</option>
+                  <option value="inversion">Inversion (τ → -1/τ blend)</option>
+                </select>
+                <div className="text-xs text-gray-400 mt-1">
+                  {animationType === 'translation' && 'Shifts the domain horizontally (modular transformation)'}
+                  {animationType === 'rotation' && 'Rotates around i (upper half-plane) or center (disk)'}
+                  {animationType === 'inversion' && 'Blends with modular inversion τ → -1/τ'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Speed</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={animationSpeed}
+                  onChange={(e) => setAnimationSpeed(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setIsAnimating(!isAnimating);
+                    if (isAnimating) {
+                      // Optional: reset animation time when stopping
+                      // setAnimationTime(0);
+                    }
+                  }}
+                  className={`flex-1 p-2 rounded flex items-center justify-center gap-2 ${
+                    isAnimating ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  {isAnimating ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  {isAnimating ? 'Pause' : 'Play'}
+                </button>
+                
+                <button
+                  onClick={() => setAnimationTime(0)}
+                  className="p-2 bg-gray-600 hover:bg-gray-500 rounded"
+                  title="Reset Animation"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Bar */}
+        <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold">Modular Forms Playground</h1>
+            <div className="text-sm text-gray-300">
+              {viewMode === 'cayley' ? 'Cayley Disk' : 'Rectangular'} | Zoom: {zoom.toFixed(2)}x
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode(viewMode === 'cayley' ? 'rectangular' : 'cayley')}
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded"
+            >
+              Toggle View
+            </button>
+            <button
+              onClick={() => { setZoom(1); setCenter({ x: 0, y: 0 }); }}
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <button className="p-2 bg-gray-700 hover:bg-gray-600 rounded">
+              <Camera className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Canvas Area */}
+        <div className="flex-1 relative flex items-center justify-center">
+          <canvas
+            ref={canvasRef}
+            width={600}
+            height={600}
+            className="max-w-full max-h-full cursor-move"
+            style={{
+              aspectRatio: '1',
+              width: 'auto',
+              height: 'auto'
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+          />
+          
+          {/* Hover Readout */}
+          {hoverPoint && hoverValue && (
+            <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 p-2 rounded text-sm">
+              <div>τ = {hoverPoint.re.toFixed(4)} + {hoverPoint.im.toFixed(4)}i</div>
+              <div>f(τ) = {hoverValue.re.toFixed(4)} + {hoverValue.im.toFixed(4)}i</div>
+              <div>|f| = {mathUtils.complex.abs(hoverValue).toFixed(4)}</div>
+              <div>arg f = {mathUtils.complex.arg(hoverValue).toFixed(4)}</div>
+            </div>
+          )}
+          {hoverPoint && !hoverValue && (
+            <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 p-2 rounded text-sm">
+              <div>τ = {hoverPoint.re.toFixed(4)} + {hoverPoint.im.toFixed(4)}i</div>
+              <div>f(τ) = undefined</div>
+              <div>|f| = undefined</div>
+              <div>arg f = undefined</div>
+            </div>
+          )}
+
+          {/* Scale Badge */}
+          <div className="absolute top-4 right-4 bg-black bg-opacity-75 p-2 rounded text-sm">
+            {viewMode === 'cayley' ? 'Cayley disk: |z|≤1' : 'τ = x + iy chart'}
+          </div>
+        </div>
+
+        {/* Knowledge Drawer */}
+        <div className={`bg-gray-800 border-t border-gray-700 transition-all duration-300 ${
+          drawerOpen ? 'h-64' : 'h-12'
+        }`}>
+          <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveTab('fourier')}
+                className={`px-3 py-1 rounded ${activeTab === 'fourier' ? 'bg-blue-600' : 'bg-gray-700'}`}
+              >
+                Fourier
+              </button>
+              <button
+                onClick={() => setActiveTab('local')}
+                className={`px-3 py-1 rounded ${activeTab === 'local' ? 'bg-blue-600' : 'bg-gray-700'}`}
+              >
+                Local Data
+              </button>
+              <button
+                onClick={() => setActiveTab('global')}
+                className={`px-3 py-1 rounded ${activeTab === 'global' ? 'bg-blue-600' : 'bg-gray-700'}`}
+              >
+                Global
+              </button>
+            </div>
+            <button
+              onClick={() => setDrawerOpen(!drawerOpen)}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded"
+            >
+              {drawerOpen ? '▼' : '▲'}
+            </button>
+          </div>
+          
+          {drawerOpen && (
+            <div className="p-4 h-full overflow-y-auto">
+              {activeTab === 'fourier' && (
+                <div>
+                  <h4 className="font-medium mb-2">Fourier Coefficients</h4>
+                  <div className="text-sm font-mono">
+                    {selectedForm.coefficients ? (
+                      <div>
+                        <div className="mb-2">{selectedForm.name} = {selectedForm.coefficients.slice(0, 6).map((coeff, i) => {
+                          if (i === 0 && coeff === 0) return '';
+                          if (i === 0) return coeff.toString();
+                          if (coeff === 0) return '';
+                          const sign = coeff > 0 ? ' + ' : ' - ';
+                          const absCoeff = Math.abs(coeff);
+                          return `${sign}${absCoeff}q${i === 1 ? '' : `^${i}`}`;
+                        }).filter(term => term !== '').join('')} + ...</div>
+                        <div className="text-xs text-gray-400">
+                          Coefficients: [{selectedForm.coefficients.slice(0, 10).join(', ')}{selectedForm.coefficients.length > 10 ? ', ...' : ''}]
+                        </div>
+                      </div>
+                    ) : selectedForm.name === 'E₄ (Eisenstein)' ? (
+                      <div>{selectedForm.name} = 1 + 240q + 2160q² + 6720q³ + ...</div>
+                    ) : (
+                      <div>{selectedForm.name} = f(τ) (analytical function)</div>
+                    )}
+                  </div>
+                  {selectedForm.coefficients && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard?.writeText(selectedForm.coefficients.join(', '));
+                      }}
+                      className="mt-2 px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs"
+                    >
+                      Copy Coefficients
+                    </button>
+                  )}
+                </div>
+              )}
+              {activeTab === 'local' && (
+                <div>
+                  <h4 className="font-medium mb-2">Local Data at τ = {hoverPoint?.re.toFixed(4) || '0'} + {hoverPoint?.im.toFixed(4) || '0'}i</h4>
+                  <div className="text-sm">
+                    <div>Order of zero/pole: 0</div>
+                    <div>Stabilizer group order: 1</div>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'global' && (
+                <div>
+                  <h4 className="font-medium mb-2">Global Properties</h4>
+                  <div className="text-sm">
+                    <div>Weight: {selectedForm.weight}</div>
+                    <div>Level: {selectedForm.level || 1}</div>
+                    <div>Character: {selectedForm.isCustom ? 'Custom' : 'Trivial'}</div>
+                    {selectedForm.isCustom && (
+                      <div className="mt-2 text-xs text-gray-400">
+                        This is a custom form with {selectedForm.coefficients?.length || 0} coefficients
+                      </div>
+                    )}
+                    {selectedForm.id === 'delta' && (
+                      <div className="mt-2 text-xs text-gray-400">
+                        The discriminant function Δ(τ) = η(τ)²⁴
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default ModularFormsPlayground;
