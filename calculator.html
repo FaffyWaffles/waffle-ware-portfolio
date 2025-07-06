@@ -16,6 +16,22 @@
             background-color: #1a1a2e;
             color: #ffffff;
         }
+        
+        /* Override Tailwind text colors to ensure visibility */
+        .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-900 {
+            color: #000000 !important;
+        }
+        
+        /* Ensure input and form elements have proper colors */
+        input, select, textarea, button {
+            color: #000000 !important;
+        }
+        
+        /* Make sure backgrounds are appropriate for black text */
+        .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-200 {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
         .loading {
             display: flex;
             justify-content: center;
