@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conway's Game of Life - Multi-Grid - Waffle Ware</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #00bfff;
+        }
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(42, 42, 42, 0.9);
+            border: 1px solid #3a3a3a;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: #00bfff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .back-button:hover {
+            background: rgba(58, 58, 58, 0.9);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-button">← Back to Portfolio</a>
+    <div id="root">
+        <div class="loading">Loading Conway's Game of Life...</div>
+    </div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+        
+        // Simple icon components
+        const Play = () => React.createElement('span', null, '▶️');
+        const Pause = () => React.createElement('span', null, '⏸️');
+        const RotateCcw = () => React.createElement('span', null, '🔄');
+        const SkipForward = () => React.createElement('span', null, '⏭️');
+        const Grid3X3 = () => React.createElement('span', null, '⬜');
+        const Hexagon = () => React.createElement('span', null, '⬢');
+        const Triangle = () => React.createElement('span', null, '🔺');
+
+const MultiGridGameOfLife = () => {
+  const ROWS = 20;
+  const COLS = 25;
+  const TRIANGLE_COLS = 45; // More triangles horizontally
+  const CELL_SIZE = 16;
+  
+  const [gridType, setGridType] = useState('hexagon'); // 'square', 'hexagon', 'triangle'
+  const [grid, setGrid] = useState(() => createEmptyGrid());
+  const [isRunning, setIsRunning] = useState(false);
+  const [generation, setGeneration] = useState(0);
+  const [speed, setSpeed] = useState(200);
+  const [showRules, setShowRules] = useState(false);
+  const intervalRef = useRef();
+  
+  // Rule sets for different grid types
+  const defaultRules = {
+    square: { survive: [2, 3], birth: [3] },
+    hexagon: { survive: [2, 3], birth: [2] },
+    triangle: { survive: [1], birth: [2] }
+  };
+  
+  const [rules, setRules] = useState(defaultRules[gridType]);
+  
+  // Initialize empty grid
+  function createEmptyGrid(type = gridType) {
+    const cols = type === 'triangle' ? TRIANGLE_COLS : COLS;
+    return Array(ROWS).fill().map(() => Array(cols).fill(false));
+  }
+  
+  // Get square coordinates
+  const getSquareCoords = (row, col) => {
+    const SQUARE_SIZE = CELL_SIZE * 1.5; // Scale up to match hexagon size
+    const x = col * SQUARE_SIZE;
+    const y = row * SQUARE_SIZE;
+    return { x, y, width: SQUARE_SIZE, height: SQUARE_SIZE };
+  };
+  
+  // Get hexagon coordinates
+  const getHexPoints = (row, col) => {
+    const HEX_SIZE = CELL_SIZE * 0.8;
+    const HEX_WIDTH = HEX_SIZE * 2;
+    const HEX_HEIGHT = HEX_SIZE * Math.sqrt(3);
+    
+    const xOffset = col * HEX_WIDTH * 0.75;
+    const yOffset = row * HEX_HEIGHT + (col % 2) * (HEX_HEIGHT / 2);
+    const centerX = xOffset + HEX_SIZE;
+    const centerY = yOffset + HEX_SIZE * Math.sqrt(3) / 2;
+    
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const x = centerX + HEX_SIZE * Math.cos(angle);
+      const y = centerY + HEX_SIZE * Math.sin(angle);
+      points.push(`${x},${y}`);
+    }
+    return points.join(' ');
+  };
+  
+  // Get triangle coordinates
+  const getTrianglePoints = (row, col) => {
+    const TRIANGLE_SIZE = CELL_SIZE * 1.8; // Scale up to match hexagon size
+    const height = TRIANGLE_SIZE * Math.sqrt(3) / 2;
+    
+    const x = (col * TRIANGLE_SIZE) / 2;
+    const y = row * height;
+    
+    // Determine if triangle points up or down
+    const isUpward = (row + col) % 2 === 0;
+    
+    if (isUpward) {
+      // Upward pointing triangle
+      return `${x + TRIANGLE_SIZE/2},${y} ${x},${y + height} ${x + TRIANGLE_SIZE},${y + height}`;
+    } else {
+      // Downward pointing triangle
+      return `${x},${y} ${x + TRIANGLE_SIZE},${y} ${x + TRIANGLE_SIZE/2},${y + height}`;
+    }
+  };
+  
+  // Get neighbors based on grid type
+  const getNeighbors = (row, col, type) => {
+    const neighbors = [];
+    const maxCols = type === 'triangle' ? TRIANGLE_COLS : COLS;
+    
+    if (type === 'square') {
+      // 8-neighbor Moore neighborhood
+      for (let dRow = -1; dRow <= 1; dRow++) {
+        for (let dCol = -1; dCol <= 1; dCol++) {
+          if (dRow === 0 && dCol === 0) continue;
+          const newRow = row + dRow;
+          const newCol = col + dCol;
+          if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < maxCols) {
+            neighbors.push([newRow, newCol]);
+          }
+        }
+      }
+    } else if (type === 'hexagon') {
+      // 6-neighbor hexagonal
+      const isEvenCol = col % 2 === 0;
+      const evenColOffsets = [
+        [-1, -1], [-1, 0],
+        [0, -1],  [0, 1],
+        [1, -1],  [1, 0]
+      ];
+      const oddColOffsets = [
+        [-1, 0],  [-1, 1],
+        [0, -1],  [0, 1],
+        [1, 0],   [1, 1]
+      ];
+      
+      const offsets = isEvenCol ? evenColOffsets : oddColOffsets;
+      
+      offsets.forEach(([dRow, dCol]) => {
+        const newRow = row + dRow;
+        const newCol = col + dCol;
+        if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < maxCols) {
+          neighbors.push([newRow, newCol]);
+        }
+      });
+    } else if (type === 'triangle') {
+      // Triangular neighbors - depends on orientation
+      const isUpward = (row + col) % 2 === 0;
+      
+      if (isUpward) {
+        // Upward triangle neighbors
+        const offsets = [
+          [-1, -1], [-1, 0], [-1, 1], // top row
+          [0, -1], [0, 1],             // same row (left and right)
+          [1, 0]                       // bottom (downward triangle)
+        ];
+        
+        offsets.forEach(([dRow, dCol]) => {
+          const newRow = row + dRow;
+          const newCol = col + dCol;
+          if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < maxCols) {
+            neighbors.push([newRow, newCol]);
+          }
+        });
+      } else {
+        // Downward triangle neighbors
+        const offsets = [
+          [-1, 0],                     // top (upward triangle)
+          [0, -1], [0, 1],             // same row (left and right)
+          [1, -1], [1, 0], [1, 1]      // bottom row
+        ];
+        
+        offsets.forEach(([dRow, dCol]) => {
+          const newRow = row + dRow;
+          const newCol = col + dCol;
+          if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < maxCols) {
+            neighbors.push([newRow, newCol]);
+          }
+        });
+      }
+    }
+    
+    return neighbors;
+  };
+  
+  // Count live neighbors
+  const countLiveNeighbors = (grid, row, col, type) => {
+    const neighbors = getNeighbors(row, col, type);
+    return neighbors.reduce((count, [nRow, nCol]) => {
+      return count + (grid[nRow][nCol] ? 1 : 0);
+    }, 0);
+  };
+  
+  // Apply Conway's rules (using custom rule sets)
+  const nextGeneration = useCallback((currentGrid) => {
+    const newGrid = createEmptyGrid();
+    const maxCols = gridType === 'triangle' ? TRIANGLE_COLS : COLS;
+    
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < maxCols; col++) {
+        const liveNeighbors = countLiveNeighbors(currentGrid, row, col, gridType);
+        const isAlive = currentGrid[row][col];
+        
+        if (isAlive) {
+          // Cell survives if neighbor count is in survival rules
+          newGrid[row][col] = rules.survive.includes(liveNeighbors);
+        } else {
+          // Cell is born if neighbor count is in birth rules
+          newGrid[row][col] = rules.birth.includes(liveNeighbors);
+        }
+      }
+    }
+    
+    return newGrid;
+  }, [gridType, rules]);
+  
+  // Toggle cell state
+  const toggleCell = (row, col) => {
+    if (isRunning) return;
+    
+    setGrid(prevGrid => {
+      const newGrid = prevGrid.map(row => [...row]);
+      newGrid[row][col] = !newGrid[row][col];
+      return newGrid;
+    });
+  };
+  
+  // Grid type change handler
+  const changeGridType = (newType) => {
+    setIsRunning(false);
+    setGridType(newType);
+    setRules(defaultRules[newType]);
+    setGrid(createEmptyGrid(newType));
+    setGeneration(0);
+  };
+  
+  // Control functions
+  const toggleRunning = () => setIsRunning(!isRunning);
+  
+  const reset = () => {
+    setIsRunning(false);
+    setGrid(createEmptyGrid());
+    setGeneration(0);
+  };
+  
+  const step = () => {
+    setGrid(prevGrid => nextGeneration(prevGrid));
+    setGeneration(prev => prev + 1);
+  };
+  
+  const addPattern = () => {
+    if (isRunning) return;
+    
+    setGrid(prevGrid => {
+      const newGrid = prevGrid.map(row => [...row]);
+      const startRow = 5;
+      const startCol = 5;
+      
+      if (gridType === 'square') {
+        // Glider pattern
+        newGrid[startRow][startCol + 1] = true;
+        newGrid[startRow + 1][startCol + 2] = true;
+        newGrid[startRow + 2][startCol] = true;
+        newGrid[startRow + 2][startCol + 1] = true;
+        newGrid[startRow + 2][startCol + 2] = true;
+      } else {
+        // Simple pattern for other grids
+        newGrid[startRow][startCol] = true;
+        newGrid[startRow][startCol + 1] = true;
+        newGrid[startRow + 1][startCol] = true;
+        newGrid[startRow + 1][startCol + 2] = true;
+        newGrid[startRow + 2][startCol + 1] = true;
+      }
+      
+      return newGrid;
+    });
+  };
+  
+  const randomize = () => {
+    if (isRunning) return;
+    
+    setGrid(() => {
+      const newGrid = createEmptyGrid();
+      const maxCols = gridType === 'triangle' ? TRIANGLE_COLS : COLS;
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < maxCols; col++) {
+          newGrid[row][col] = Math.random() < 0.3;
+        }
+      }
+      return newGrid;
+    });
+    setGeneration(0);
+  };
+  
+  // Game loop
+  useEffect(() => {
+    if (isRunning) {
+      intervalRef.current = setInterval(() => {
+        setGrid(prevGrid => nextGeneration(prevGrid));
+        setGeneration(prev => prev + 1);
+      }, speed);
+    } else {
+      clearInterval(intervalRef.current);
+    }
+    
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning, speed, nextGeneration]);
+  
+  // Calculate SVG dimensions based on grid type
+  const getSvgDimensions = () => {
+    switch (gridType) {
+      case 'square':
+        const SQUARE_SIZE = CELL_SIZE * 1.5;
+        return { width: COLS * SQUARE_SIZE, height: ROWS * SQUARE_SIZE };
+      case 'hexagon':
+        const hexSize = CELL_SIZE * 0.8;
+        const hexWidth = hexSize * 2;
+        const hexHeight = hexSize * Math.sqrt(3);
+        return {
+          width: COLS * hexWidth * 0.75 + hexSize,
+          height: ROWS * hexHeight + hexHeight / 2
+        };
+      case 'triangle':
+        const TRIANGLE_SIZE = CELL_SIZE * 1.8;
+        return {
+          width: (TRIANGLE_COLS * TRIANGLE_SIZE) / 2 + TRIANGLE_SIZE,
+          height: ROWS * TRIANGLE_SIZE * Math.sqrt(3) / 2
+        };
+      default:
+        return { width: 800, height: 600 };
+    }
+  };
+  
+  const { width: svgWidth, height: svgHeight } = getSvgDimensions();
+  
+  return (
+    <div className="flex flex-col items-center p-6 bg-gray-900 min-h-screen text-white">
+      <div className="mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          Multi-Grid Game of Life
+        </h1>
+        <p className="text-gray-300 text-sm">
+          Switch between different grid topologies • Each has unique neighbor patterns
+        </p>
+      </div>
+      
+      {/* Grid Type Selector */}
+      <div className="flex gap-2 mb-6 p-1 bg-gray-800 rounded-lg">
+        <button
+          onClick={() => changeGridType('square')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            gridType === 'square'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:text-white hover:bg-gray-700'
+          }`}
+        >
+          <Grid3X3 size={16} />
+          Square
+        </button>
+        <button
+          onClick={() => changeGridType('hexagon')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            gridType === 'hexagon'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:text-white hover:bg-gray-700'
+          }`}
+        >
+          <Hexagon size={16} />
+          Hexagon
+        </button>
+        <button
+          onClick={() => changeGridType('triangle')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            gridType === 'triangle'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:text-white hover:bg-gray-700'
+          }`}
+        >
+          <Triangle size={16} />
+          Triangle
+        </button>
+      </div>
+      
+      <div className="flex flex-wrap gap-4 mb-6 items-center justify-center">
+        <button
+          onClick={toggleRunning}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+            isRunning
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-green-600 hover:bg-green-700 text-white'
+          }`}
+        >
+          {isRunning ? <Pause size={16} /> : <Play size={16} />}
+          {isRunning ? 'Pause' : 'Start'}
+        </button>
+        
+        <button
+          onClick={step}
+          disabled={isRunning}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        >
+          <SkipForward size={16} />
+          Step
+        </button>
+        
+        <button
+          onClick={reset}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+        >
+          <RotateCcw size={16} />
+          Reset
+        </button>
+        
+        <button
+          onClick={addPattern}
+          disabled={isRunning}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        >
+          Add Pattern
+        </button>
+        
+        <button
+          onClick={randomize}
+          disabled={isRunning}
+          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        >
+          Randomize
+        </button>
+      </div>
+      
+      <div className="flex gap-6 mb-6 items-center">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-400">{generation}</div>
+          <div className="text-sm text-gray-400">Generation</div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-300">Speed:</label>
+          <input
+            type="range"
+            min="50"
+            max="1000"
+            step="50"
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+            className="w-20"
+          />
+          <span className="text-sm text-gray-400 w-12">{speed}ms</span>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-lg font-semibold text-purple-400">
+            {gridType === 'square' ? '8' : '6'} neighbors
+          </div>
+          <div className="text-sm text-gray-400">per cell</div>
+        </div>
+        
+        <button
+          onClick={() => setShowRules(!showRules)}
+          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm transition-colors"
+        >
+          {showRules ? 'Hide' : 'Rules'}
+        </button>
+      </div>
+      
+      {/* Rule Customization Panel */}
+      {showRules && (
+        <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700 max-w-4xl w-full">
+          <h3 className="text-lg font-semibold text-white mb-3">Rule Customization</h3>
+          
+          <div className="flex flex-wrap gap-4 items-center justify-center">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-300">Survive on:</label>
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].slice(0, gridType === 'square' ? 9 : 7).map(num => (
+                  <button
+                    key={`survive-${num}`}
+                    onClick={() => {
+                      const newSurvive = rules.survive.includes(num)
+                        ? rules.survive.filter(n => n !== num)
+                        : [...rules.survive, num].sort((a, b) => a - b);
+                      setRules(prev => ({ ...prev, survive: newSurvive }));
+                    }}
+                    className={`w-8 h-8 text-xs rounded ${
+                      rules.survive.includes(num)
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                    } transition-colors`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-300">Birth on:</label>
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].slice(0, gridType === 'square' ? 9 : 7).map(num => (
+                  <button
+                    key={`birth-${num}`}
+                    onClick={() => {
+                      const newBirth = rules.birth.includes(num)
+                        ? rules.birth.filter(n => n !== num)
+                        : [...rules.birth, num].sort((a, b) => a - b);
+                      setRules(prev => ({ ...prev, birth: newBirth }));
+                    }}
+                    className={`w-8 h-8 text-xs rounded ${
+                      rules.birth.includes(num)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                    } transition-colors`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setRules(defaultRules[gridType])}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm transition-colors"
+            >
+              Reset to Default
+            </button>
+          </div>
+          
+          <div className="mt-3 text-center">
+            <div className="text-sm text-gray-300">
+              Current: Survive on {rules.survive.join(', ') || 'none'} • Birth on {rules.birth.join(', ') || 'none'}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="border-2 border-gray-700 rounded-lg overflow-hidden bg-gray-800">
+        <svg
+          width={svgWidth}
+          height={svgHeight}
+          className="block"
+          style={{ background: '#1f2937' }}
+        >
+          {grid.map((row, rowIndex) =>
+            row.map((cell, colIndex) => {
+              if (gridType === 'square') {
+                const coords = getSquareCoords(rowIndex, colIndex);
+                return (
+                  <rect
+                    key={`${rowIndex}-${colIndex}`}
+                    x={coords.x}
+                    y={coords.y}
+                    width={coords.width}
+                    height={coords.height}
+                    fill={cell ? '#10b981' : '#374151'}
+                    stroke="#4b5563"
+                    strokeWidth="1"
+                    className="cursor-pointer transition-colors duration-150 hover:stroke-blue-400"
+                    onClick={() => toggleCell(rowIndex, colIndex)}
+                  />
+                );
+              } else if (gridType === 'hexagon') {
+                return (
+                  <polygon
+                    key={`${rowIndex}-${colIndex}`}
+                    points={getHexPoints(rowIndex, colIndex)}
+                    fill={cell ? '#10b981' : '#374151'}
+                    stroke="#4b5563"
+                    strokeWidth="1"
+                    className="cursor-pointer transition-colors duration-150 hover:stroke-blue-400"
+                    onClick={() => toggleCell(rowIndex, colIndex)}
+                  />
+                );
+              } else if (gridType === 'triangle') {
+                return (
+                  <polygon
+                    key={`${rowIndex}-${colIndex}`}
+                    points={getTrianglePoints(rowIndex, colIndex)}
+                    fill={cell ? '#10b981' : '#374151'}
+                    stroke="#4b5563"
+                    strokeWidth="1"
+                    className="cursor-pointer transition-colors duration-150 hover:stroke-blue-400"
+                    onClick={() => toggleCell(rowIndex, colIndex)}
+                  />
+                );
+              }
+              return null;
+            })
+          )}
+        </svg>
+      </div>
+      
+      <div className="mt-4 text-center text-sm text-gray-400 max-w-2xl">
+        <p>
+          Click "Rules" to customize the birth and survival conditions and experiment with different cellular automata!
+        </p>
+      </div>
+    </div>
+  );
+};
+
+        // Render the main component
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(MultiGridGameOfLife));
+    </script>
+</body>
+</html>
