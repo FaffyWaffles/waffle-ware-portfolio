@@ -397,7 +397,17 @@ const mathUtils = {
 };
 
 const PREDEFINED_FORMS = [
-  { id: 'test', name: 'Test Function', weight: 1, level: 1, func: mathUtils.testFunction, description: 'Simple test function: sin(2πτ)' },
+  { 
+    id: 'test', 
+    name: 'Test Function', 
+    weight: 1, 
+    level: 1, 
+    func: mathUtils.testFunction, 
+    description: 'Simple test function: sin(2πτ)',
+    hasZeros: true,
+    hasPoles: false,
+    knownZeros: [] // Zeros at integers for sin(2πτ)
+  },
   { 
     id: 'e4', 
     name: 'E₄ (Eisenstein)', 
@@ -405,7 +415,10 @@ const PREDEFINED_FORMS = [
     level: 1,
     func: mathUtils.eisensteinE4, 
     description: 'Weight 4 Eisenstein series',
-    coefficients: [1, 240, 2160, 6720, 17520, 30240, 60480, 82560, 140400]
+    coefficients: [1, 240, 2160, 6720, 17520, 30240, 60480, 82560, 140400],
+    hasZeros: false, // E4 never vanishes in the upper half-plane
+    hasPoles: false,
+    knownZeros: []
   },
   {
     id: 'delta',
@@ -415,7 +428,10 @@ const PREDEFINED_FORMS = [
     func: (tau) => mathUtils.customModularForm(tau, [0, 1, -24, 252, -1472, 4830, -6048, -16744, 84480]),
     description: 'Ramanujan discriminant function',
     coefficients: [0, 1, -24, 252, -1472, 4830, -6048, -16744, 84480],
-    isCustom: false
+    isCustom: false,
+    hasZeros: false, // Δ is a cusp form - no zeros in upper half-plane
+    hasPoles: false, // No poles either
+    knownZeros: []
   }
 ];
 
@@ -750,53 +766,65 @@ const HSV_PRESETS = [
           
           const magnitude = mathUtils.complex.abs(value);
           
-          // Detect zeros (very small magnitude)
-          if (magnitude < 0.01) {
-            ctx.fillStyle = '#00ff00'; // Bright green for zeros
-            ctx.beginPath();
-            ctx.arc(px, py, 3, 0, 2 * Math.PI);
-            ctx.fill();
+          // Only show zeros/poles if the selected form actually has them
+          if (selectedForm.hasZeros || selectedForm.hasPoles) {
+            // For the test function (sin), look for actual zeros
+            if (selectedForm.id === 'test') {
+              // sin(2πτ) = 0 when Re(τ) is an integer
+              // Check if we're close to an integer value in real part
+              const nearInteger = Math.abs(tau.re - Math.round(tau.re)) < 0.1;
+              
+              if (nearInteger && magnitude < 0.1) {
+                ctx.fillStyle = '#00ff00'; // Bright green for zeros
+                ctx.beginPath();
+                ctx.arc(px, py, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Add a small cross
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px - 6, py);
+                ctx.lineTo(px + 6, py);
+                ctx.moveTo(px, py - 6);
+                ctx.lineTo(px, py + 6);
+                ctx.stroke();
+              }
+              
+              // Also mark near-zeros for visualization
+              else if (magnitude < 0.05) {
+                ctx.fillStyle = '#88ff88'; // Light green for small values
+                ctx.beginPath();
+                ctx.arc(px, py, 2, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+            }
             
-            // Add a small cross
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(px - 5, py);
-            ctx.lineTo(px + 5, py);
-            ctx.moveTo(px, py - 5);
-            ctx.lineTo(px, py + 5);
-            ctx.stroke();
+            // For custom forms, use more conservative detection
+            if (selectedForm.isCustom) {
+              // Only mark as zeros if very close to zero and near known problematic points
+              if (magnitude < 0.001) {
+                ctx.fillStyle = '#88ff88'; // Light green for potential zeros
+                ctx.beginPath();
+                ctx.arc(px, py, 2, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+              
+              // Only mark as poles if extremely large and near problematic points
+              if (magnitude > 1000 && tau.im < 0.5) {
+                ctx.fillStyle = '#ff8888'; // Light red for potential poles
+                ctx.beginPath();
+                ctx.arc(px, py, 2, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+            }
           }
           
-          // Detect poles (very large magnitude)
-          else if (magnitude > 100) {
-            ctx.fillStyle = '#ff0000'; // Bright red for poles
-            ctx.beginPath();
-            ctx.arc(px, py, 4, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Add a small circle
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px, py, 6, 0, 2 * Math.PI);
-            ctx.stroke();
-          }
-          
-          // Detect near-zeros (small but not tiny)
-          else if (magnitude < 0.1) {
-            ctx.fillStyle = '#88ff88'; // Light green for near-zeros
-            ctx.beginPath();
-            ctx.arc(px, py, 2, 0, 2 * Math.PI);
-            ctx.fill();
-          }
-          
-          // Detect near-poles (large magnitude)
-          else if (magnitude > 20) {
-            ctx.fillStyle = '#ff8888'; // Light red for near-poles
-            ctx.beginPath();
-            ctx.arc(px, py, 2, 0, 2 * Math.PI);
-            ctx.fill();
+          // Show information about why no zeros/poles are displayed
+          if (!selectedForm.hasZeros && !selectedForm.hasPoles && selectedForm.id === 'delta') {
+            // For Δ, we could show a message or just skip the detection entirely
+            // The discriminant function has no zeros or poles in the upper half-plane
+            continue;
           }
         }
       }
@@ -1380,10 +1408,11 @@ const HSV_PRESETS = [
                   
                   {showOverlays.zeros && (
                     <div className="text-xs text-gray-400 mt-2 ml-6">
-                      <div>🟢 Green: Zeros (|f| ≈ 0)</div>
-                      <div>🔴 Red: Poles (|f| {'>>>'} 0)</div>
-                      <div>○ Circles: Exact zeros/poles</div>
-                      <div>• Dots: Near zeros/poles</div>
+                      <div>🟢 Bright green: Exact zeros (+ cross)</div>
+                      <div>🟢 Light green: Near-zeros</div>
+                      <div>🔴 Red: Poles (if any exist)</div>
+                      <div>Test function: zeros at integer Re(τ)</div>
+                      <div>E₄, Δ: no zeros/poles in upper half-plane</div>
                     </div>
                   )}
                 </div>
