@@ -4534,6 +4534,7 @@ const LengthContractionCalculator = () => {
     length: [
       { value: 'm', label: 'Meters' },
       { value: 'km', label: 'Kilometers' },
+      { value: 'ly', label: 'Light-years' },
       { value: 'cm', label: 'Centimeters' },
       { value: 'mm', label: 'Millimeters' },
       { value: 'ft', label: 'Feet' },
@@ -4556,6 +4557,7 @@ const LengthContractionCalculator = () => {
       switch (unit) {
         case 'm': return val;
         case 'km': return val * 1000;
+        case 'ly': return val * 9.461e15; // 1 light-year = 9.461e15 meters
         case 'cm': return val / 100;
         case 'mm': return val / 1000;
         case 'ft': return val * 0.3048;
@@ -4582,6 +4584,7 @@ const LengthContractionCalculator = () => {
       switch (unit) {
         case 'm': return value;
         case 'km': return value / 1000;
+        case 'ly': return value / 9.461e15; // Convert meters back to light-years
         case 'cm': return value * 100;
         case 'mm': return value * 1000;
         case 'ft': return value / 0.3048;

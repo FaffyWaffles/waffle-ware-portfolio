@@ -1,0 +1,3750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Physics Calculator Suite - Waffle Ware</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+        }
+        
+        .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-900 {
+            color: #000000 !important;
+        }
+        
+        input, select, textarea, button {
+            color: #000000 !important;
+        }
+        
+        .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-200 {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #00bfff;
+        }
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(42, 42, 42, 0.9);
+            border: 1px solid #3a3a3a;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: #00bfff;
+            text-decoration: none;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        .back-button:hover {
+            background: rgba(0, 191, 255, 0.1);
+            border-color: #00bfff;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-button">← Back to Portfolio</a>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+// Unit conversion functions
+const conversions = {
+  temperature: {
+    'K': { 
+      'K': (x) => x, 
+      '°C': (x) => x - 273.15, 
+      '°F': (x) => (x - 273.15) * 9/5 + 32 
+    },
+    '°C': { 
+      'K': (x) => x + 273.15, 
+      '°C': (x) => x, 
+      '°F': (x) => x * 9/5 + 32 
+    },
+    '°F': { 
+      'K': (x) => (x - 32) * 5/9 + 273.15, 
+      '°C': (x) => (x - 32) * 5/9, 
+      '°F': (x) => x 
+    }
+  },
+  heatCapacity: {
+    'cal/(mol·K)': {
+      'cal/(mol·K)': (x) => x,
+      'J/(mol·K)': (x) => x * 4.184,
+      'kJ/(mol·K)': (x) => x * 0.004184
+    },
+    'J/(mol·K)': {
+      'cal/(mol·K)': (x) => x / 4.184,
+      'J/(mol·K)': (x) => x,
+      'kJ/(mol·K)': (x) => x / 1000
+    },
+    'kJ/(mol·K)': {
+      'cal/(mol·K)': (x) => x / 0.004184,
+      'J/(mol·K)': (x) => x * 1000,
+      'kJ/(mol·K)': (x) => x
+    }
+  },
+  energy: {
+    'cal': {
+      'cal': (x) => x,
+      'J': (x) => x * 4.184,
+      'kJ': (x) => x * 0.004184
+    },
+    'J': {
+      'cal': (x) => x / 4.184,
+      'J': (x) => x,
+      'kJ': (x) => x / 1000
+    },
+    'kJ': {
+      'cal': (x) => x / 0.004184,
+      'J': (x) => x * 1000,
+      'kJ': (x) => x
+    }
+  },
+  speed: {
+    'm/s': {
+      'm/s': (x) => x,
+      'cm/s': (x) => x * 100,
+      'km/h': (x) => x * 3.6,
+      'ft/s': (x) => x * 3.281
+    },
+    'cm/s': {
+      'm/s': (x) => x / 100,
+      'cm/s': (x) => x,
+      'km/h': (x) => x * 0.036,
+      'ft/s': (x) => x / 30.48
+    },
+    'km/h': {
+      'm/s': (x) => x / 3.6,
+      'cm/s': (x) => x / 0.036,
+      'km/h': (x) => x,
+      'ft/s': (x) => x / 1.097
+    },
+    'ft/s': {
+      'm/s': (x) => x / 3.281,
+      'cm/s': (x) => x * 30.48,
+      'km/h': (x) => x * 1.097,
+      'ft/s': (x) => x
+    }
+  },
+  frequency: {
+    'Hz': {
+      'Hz': (x) => x,
+      'kHz': (x) => x / 1000,
+      'MHz': (x) => x / 1000000
+    },
+    'kHz': {
+      'Hz': (x) => x * 1000,
+      'kHz': (x) => x,
+      'MHz': (x) => x / 1000
+    },
+    'MHz': {
+      'Hz': (x) => x * 1000000,
+      'kHz': (x) => x * 1000,
+      'MHz': (x) => x
+    }
+  },
+  length: {
+    'm': {
+      'm': (x) => x,
+      'cm': (x) => x * 100,
+      'mm': (x) => x * 1000,
+      'μm': (x) => x * 1000000,
+      'nm': (x) => x * 1000000000,
+      'km': (x) => x / 1000,
+      'ft': (x) => x * 3.281,
+      'in': (x) => x * 39.37
+    },
+    'cm': {
+      'm': (x) => x / 100,
+      'cm': (x) => x,
+      'mm': (x) => x * 10,
+      'μm': (x) => x * 10000,
+      'nm': (x) => x * 10000000,
+      'km': (x) => x / 100000,
+      'ft': (x) => x / 30.48,
+      'in': (x) => x / 2.54
+    },
+    'mm': {
+      'm': (x) => x / 1000,
+      'cm': (x) => x / 10,
+      'mm': (x) => x,
+      'μm': (x) => x * 1000,
+      'nm': (x) => x * 1000000,
+      'km': (x) => x / 1000000,
+      'ft': (x) => x / 304.8,
+      'in': (x) => x / 25.4
+    },
+    'μm': {
+      'm': (x) => x / 1000000,
+      'cm': (x) => x / 10000,
+      'mm': (x) => x / 1000,
+      'μm': (x) => x,
+      'nm': (x) => x * 1000,
+      'km': (x) => x / 1000000000,
+      'ft': (x) => x / 304800,
+      'in': (x) => x / 25400
+    },
+    'nm': {
+      'm': (x) => x / 1000000000,
+      'cm': (x) => x / 10000000,
+      'mm': (x) => x / 1000000,
+      'μm': (x) => x / 1000,
+      'nm': (x) => x,
+      'km': (x) => x / 1000000000000,
+      'ft': (x) => x / 304800000,
+      'in': (x) => x / 25400000
+    },
+    'km': {
+      'm': (x) => x * 1000,
+      'cm': (x) => x * 100000,
+      'mm': (x) => x * 1000000,
+      'μm': (x) => x * 1000000000,
+      'nm': (x) => x * 1000000000000,
+      'km': (x) => x,
+      'ft': (x) => x * 3281,
+      'in': (x) => x * 39370
+    },
+    'ft': {
+      'm': (x) => x / 3.281,
+      'cm': (x) => x * 30.48,
+      'mm': (x) => x * 304.8,
+      'μm': (x) => x * 304800,
+      'nm': (x) => x * 304800000,
+      'km': (x) => x / 3281,
+      'ft': (x) => x,
+      'in': (x) => x * 12
+    },
+    'in': {
+      'm': (x) => x / 39.37,
+      'cm': (x) => x * 2.54,
+      'mm': (x) => x * 25.4,
+      'μm': (x) => x * 25400,
+      'nm': (x) => x * 25400000,
+      'km': (x) => x / 39370,
+      'ft': (x) => x / 12,
+      'in': (x) => x
+    }
+  },
+  time: {
+    's': {
+      's': (x) => x,
+      'ms': (x) => x * 1000,
+      'μs': (x) => x * 1000000,
+      'min': (x) => x / 60,
+      'h': (x) => x / 3600
+    },
+    'ms': {
+      's': (x) => x / 1000,
+      'ms': (x) => x,
+      'μs': (x) => x * 1000,
+      'min': (x) => x / 60000,
+      'h': (x) => x / 3600000
+    },
+    'μs': {
+      's': (x) => x / 1000000,
+      'ms': (x) => x / 1000,
+      'μs': (x) => x,
+      'min': (x) => x / 60000000,
+      'h': (x) => x / 3600000000
+    },
+    'min': {
+      's': (x) => x * 60,
+      'ms': (x) => x * 60000,
+      'μs': (x) => x * 60000000,
+      'min': (x) => x,
+      'h': (x) => x / 60
+    },
+    'h': {
+      's': (x) => x * 3600,
+      'ms': (x) => x * 3600000,
+      'μs': (x) => x * 3600000000,
+      'min': (x) => x * 60,
+      'h': (x) => x
+    }
+  },
+  force: {
+    'N': {
+      'N': (x) => x,
+      'kN': (x) => x / 1000,
+      'lbf': (x) => x / 4.448
+    },
+    'kN': {
+      'N': (x) => x * 1000,
+      'kN': (x) => x,
+      'lbf': (x) => x * 224.8
+    },
+    'lbf': {
+      'N': (x) => x * 4.448,
+      'kN': (x) => x / 224.8,
+      'lbf': (x) => x
+    }
+  },
+  molarMass: {
+    'g/mol': {
+      'g/mol': (x) => x,
+      'kg/mol': (x) => x / 1000,
+      'u': (x) => x
+    },
+    'kg/mol': {
+      'g/mol': (x) => x * 1000,
+      'kg/mol': (x) => x,
+      'u': (x) => x * 1000
+    },
+    'u': {
+      'g/mol': (x) => x,
+      'kg/mol': (x) => x / 1000,
+      'u': (x) => x
+    }
+  },
+  percentage: {
+    '%': { '%': (x) => x }
+  },
+  pressure: {
+    'atm': { 
+      'atm': (x) => x, 
+      'Pa': (x) => x * 101325, 
+      'kPa': (x) => x * 101.325, 
+      'bar': (x) => x * 1.01325,
+      'mmHg': (x) => x * 760,
+      'psi': (x) => x * 14.696
+    },
+    'Pa': { 
+      'atm': (x) => x / 101325, 
+      'Pa': (x) => x, 
+      'kPa': (x) => x / 1000, 
+      'bar': (x) => x / 100000,
+      'mmHg': (x) => x / 133.322,
+      'psi': (x) => x / 6895
+    },
+    'kPa': { 
+      'atm': (x) => x / 101.325, 
+      'Pa': (x) => x * 1000, 
+      'kPa': (x) => x, 
+      'bar': (x) => x / 100,
+      'mmHg': (x) => x * 7.501,
+      'psi': (x) => x / 6.895
+    },
+    'bar': { 
+      'atm': (x) => x / 1.01325, 
+      'Pa': (x) => x * 100000, 
+      'kPa': (x) => x * 100, 
+      'bar': (x) => x,
+      'mmHg': (x) => x * 750.1,
+      'psi': (x) => x * 14.504
+    },
+    'mmHg': { 
+      'atm': (x) => x / 760, 
+      'Pa': (x) => x * 133.322, 
+      'kPa': (x) => x / 7.501, 
+      'bar': (x) => x / 750.1,
+      'mmHg': (x) => x,
+      'psi': (x) => x / 51.715
+    },
+    'psi': { 
+      'atm': (x) => x / 14.696, 
+      'Pa': (x) => x * 6895, 
+      'kPa': (x) => x * 6.895, 
+      'bar': (x) => x / 14.504,
+      'mmHg': (x) => x * 51.715,
+      'psi': (x) => x
+    }
+  },
+  volume: {
+    'L': { 
+      'L': (x) => x, 
+      'mL': (x) => x * 1000, 
+      'm³': (x) => x / 1000, 
+      'cm³': (x) => x * 1000 
+    },
+    'mL': { 
+      'L': (x) => x / 1000, 
+      'mL': (x) => x, 
+      'm³': (x) => x / 1000000, 
+      'cm³': (x) => x 
+    },
+    'm³': { 
+      'L': (x) => x * 1000, 
+      'mL': (x) => x * 1000000, 
+      'm³': (x) => x, 
+      'cm³': (x) => x * 1000000 
+    },
+    'cm³': { 
+      'L': (x) => x / 1000, 
+      'mL': (x) => x, 
+      'm³': (x) => x / 1000000, 
+      'cm³': (x) => x 
+    }
+  },
+  power: {
+    'W': {
+      'W': (x) => x,
+      'kW': (x) => x / 1000,
+      'MW': (x) => x / 1000000,
+      'mW': (x) => x * 1000
+    },
+    'kW': {
+      'W': (x) => x * 1000,
+      'kW': (x) => x,
+      'MW': (x) => x / 1000,
+      'mW': (x) => x * 1000000
+    },
+    'MW': {
+      'W': (x) => x * 1000000,
+      'kW': (x) => x * 1000,
+      'MW': (x) => x,
+      'mW': (x) => x * 1000000000
+    },
+    'mW': {
+      'W': (x) => x / 1000,
+      'kW': (x) => x / 1000000,
+      'MW': (x) => x / 1000000000,
+      'mW': (x) => x
+    }
+  },
+  massDensity: {
+    'kg/m': {
+      'kg/m': (x) => x,
+      'g/m': (x) => x * 1000,
+      'g/cm': (x) => x / 10
+    },
+    'g/m': {
+      'kg/m': (x) => x / 1000,
+      'g/m': (x) => x,
+      'g/cm': (x) => x / 100
+    },
+    'g/cm': {
+      'kg/m': (x) => x * 10,
+      'g/m': (x) => x * 100,
+      'g/cm': (x) => x
+    }
+  },
+  angle: {
+    '°': {
+      '°': (x) => x,
+      'rad': (x) => x * Math.PI / 180,
+      'mrad': (x) => x * Math.PI / 180 * 1000
+    },
+    'rad': {
+      '°': (x) => x * 180 / Math.PI,
+      'rad': (x) => x,
+      'mrad': (x) => x * 1000
+    },
+    'mrad': {
+      '°': (x) => x / 1000 * 180 / Math.PI,
+      'rad': (x) => x / 1000,
+      'mrad': (x) => x
+    }
+  },
+  mass: {
+    'g': { 
+      'g': (x) => x, 
+      'kg': (x) => x / 1000, 
+      'mg': (x) => x * 1000 
+    },
+    'kg': { 
+      'g': (x) => x * 1000, 
+      'kg': (x) => x, 
+      'mg': (x) => x * 1000000 
+    },
+    'mg': { 
+      'g': (x) => x / 1000, 
+      'kg': (x) => x / 1000000, 
+      'mg': (x) => x 
+    }
+  }
+};
+
+// Convert value from one unit to another
+const convertUnit = (value, fromUnit, toUnit, type) => {
+  if (!value || !conversions[type] || !conversions[type][fromUnit]) return value;
+  return conversions[type][fromUnit][toUnit](parseFloat(value));
+};
+
+// Variable Input Component with Unit Selection
+const VariableInput = ({ varKey, variable, onToggleStatus, onUpdateValue, onUpdateUnit, results }) => {
+  const unitOptions = {
+    temperature: ['K', '°C', '°F'],
+    pressure: ['atm', 'Pa', 'kPa', 'bar', 'mmHg', 'psi'],
+    volume: ['L', 'mL', 'm³', 'cm³'],
+    mass: ['g', 'kg', 'mg'],
+    massDensity: ['kg/m', 'g/m', 'g/cm'],
+    heatCapacity: ['cal/(mol·K)', 'J/(mol·K)', 'kJ/(mol·K)'],
+    energy: ['cal', 'J', 'kJ'],
+    power: ['W', 'kW', 'MW', 'mW'],
+    speed: ['m/s', 'cm/s', 'km/h', 'ft/s'],
+    molarMass: ['g/mol', 'kg/mol', 'u'],
+    percentage: ['%'],
+    frequency: ['Hz', 'kHz', 'MHz'],
+    angle: ['°', 'rad', 'mrad'],
+    length: ['m', 'cm', 'mm', 'μm', 'nm', 'km', 'ft', 'in'],
+    time: ['s', 'ms', 'μs', 'min', 'h'],
+    force: ['N', 'kN', 'lbf'],
+    default: [variable.unit]
+  };
+
+  const getUnitType = () => {
+    if (varKey.includes('temperature') || varKey.startsWith('T')) return 'temperature';
+    if (varKey.includes('pressure') || varKey.startsWith('P')) return 'pressure';
+    if (varKey.includes('volume') || varKey.startsWith('V')) return 'volume';
+    if (varKey.includes('mass') || varKey === 'mass') return 'mass';
+    if (varKey.includes('linearDensity') || varKey.includes('massDensity')) return 'massDensity';
+    if (varKey.includes('Cp') || varKey.includes('Cv') || varKey.includes('heatCapacity')) return 'heatCapacity';
+    if (varKey.includes('heat') || varKey.includes('Q') || varKey.includes('energy') || varKey.includes('Work')) return 'energy';
+    if (varKey.includes('power') || varKey === 'power') return 'power';
+    if (varKey.includes('speed') || varKey.includes('velocity') || varKey.includes('rms')) return 'speed';
+    if (varKey.includes('molarMass') || varKey.includes('molecularWeight') || varKey.includes('MW')) return 'molarMass';
+    if (varKey.includes('efficiency')) return 'percentage';
+    if (varKey.includes('frequency') || varKey === 'f') return 'frequency';
+    if (varKey.includes('length') || varKey.includes('wavelength') || varKey.includes('amplitude') || varKey === 'L') return 'length';
+    if (varKey.includes('time') || varKey === 't') return 'time';
+    if (varKey.includes('tension') || varKey.includes('force')) return 'force';
+    if (varKey.includes('angle') || varKey.includes('Angle')) return 'angle';
+    return 'default';
+  };
+
+  const unitType = getUnitType();
+  const availableUnits = unitOptions[unitType] || unitOptions.default;
+
+  const displayValue = results[varKey] ? results[varKey].value : variable.value;
+
+  return (
+    <div className="border rounded-lg p-4 bg-gray-50">
+      <div className="flex items-center justify-between mb-2">
+        <label className="font-medium text-sm">{variable.label}</label>
+        <button
+          onClick={() => onToggleStatus(varKey)}
+          className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+            variable.status === 'given'
+              ? 'bg-green-500 text-white hover:bg-green-600'
+              : 'bg-orange-500 text-white hover:bg-orange-600'
+          }`}
+        >
+          {variable.status === 'given' ? 'Given' : 'Unknown'}
+        </button>
+      </div>
+      
+      <div className="space-y-2">
+        <input
+          type="number"
+          step="any"
+          value={displayValue}
+          onChange={(e) => onUpdateValue(varKey, e.target.value)}
+          disabled={variable.status === 'unknown'}
+          className={`w-full p-2 border rounded text-sm ${
+            variable.status === 'unknown' 
+              ? 'bg-gray-200 cursor-not-allowed' 
+              : 'bg-white'
+          } ${results[varKey] ? 'bg-blue-50 font-semibold' : ''}`}
+          placeholder={variable.status === 'unknown' ? 'Calculated' : 'Enter value'}
+        />
+        
+        {availableUnits.length > 1 && (
+          <select
+            value={variable.unit}
+            onChange={(e) => onUpdateUnit(varKey, e.target.value)}
+            className="w-full p-2 border rounded text-sm bg-white"
+          >
+            {availableUnits.map(unit => (
+              <option key={unit} value={unit}>{unit}</option>
+            ))}
+          </select>
+        )}
+        
+        {availableUnits.length === 1 && (
+          <div className="text-xs text-gray-600 text-center p-1">
+            {variable.unit}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Wave Motion Calculator
+const WaveMotionCalculator = () => {
+  const [variables, setVariables] = useState({
+    length: { value: 5.00, status: 'given', unit: 'm', label: 'Wire Length (L)' },
+    mass: { value: 60, status: 'given', unit: 'g', label: 'Total Wire Mass (m)' },
+    linearDensity: { value: 12.0, status: 'given', unit: 'g/m', label: 'Mass per Unit Length (μ)' },
+    tension: { value: 8000, status: 'given', unit: 'N', label: 'Tension (T)' },
+    fundamentalFreq: { value: '', status: 'unknown', unit: 'Hz', label: 'Fundamental Frequency (f₁)' },
+    harmonicNumber: { value: 1, status: 'given', unit: '', label: 'Harmonic Number (n)' },
+    harmonicFreq: { value: '', status: 'unknown', unit: 'Hz', label: 'nth Harmonic Frequency (fₙ)' },
+    wavelength: { value: '', status: 'unknown', unit: 'm', label: 'Wavelength (λ)' },
+    amplitude: { value: 2.3, status: 'given', unit: 'mm', label: 'Amplitude (A)' },
+    waveSpeed: { value: '', status: 'unknown', unit: 'm/s', label: 'Wave Speed (v)' },
+    travelTime: { value: '', status: 'unknown', unit: 's', label: 'Travel Time for Full Length (t)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'length' || key === 'wavelength' || key === 'amplitude') unitType = 'length';
+        else if (key === 'mass') unitType = 'mass';
+        else if (key === 'linearDensity') unitType = 'massDensity';
+        else if (key === 'fundamentalFreq' || key === 'harmonicFreq') unitType = 'frequency';
+        else if (key === 'waveSpeed') unitType = 'speed';
+        else if (key === 'tension') unitType = 'force';
+        else if (key === 'travelTime') unitType = 'time';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      // Convert to standard units
+      const length_m = convertUnit(variables.length.value, variables.length.unit, 'm', 'length');
+      const tension_N = convertUnit(variables.tension.value, variables.tension.unit, 'N', 'force');
+      const harmonicNumber = parseFloat(variables.harmonicNumber.value) || 1;
+
+      // Handle linear mass density
+      let linearDensity_kgm;
+      if (variables.linearDensity.status === 'given' && variables.linearDensity.value) {
+        // Convert to kg/m
+        linearDensity_kgm = convertUnit(variables.linearDensity.value, variables.linearDensity.unit, 'kg/m', 'massDensity');
+      } else if (variables.mass.status === 'given' && variables.mass.value) {
+        // Calculate from total mass
+        const mass_kg = convertUnit(variables.mass.value, variables.mass.unit, 'kg', 'mass');
+        linearDensity_kgm = mass_kg / length_m;
+      }
+
+      if (linearDensity_kgm) {
+        if (variables.linearDensity.status === 'unknown') {
+          const linearDensity_display = convertUnit(linearDensity_kgm, 'kg/m', variables.linearDensity.unit, 'massDensity');
+          newResults.linearDensity = { ...variables.linearDensity, value: linearDensity_display.toFixed(3) };
+        }
+        if (variables.mass.status === 'unknown') {
+          const total_mass_kg = linearDensity_kgm * length_m;
+          const mass_display = convertUnit(total_mass_kg, 'kg', variables.mass.unit, 'mass');
+          newResults.mass = { ...variables.mass, value: mass_display.toFixed(3) };
+        }
+      }
+
+      // Calculate wave speed: v = √(T/μ)
+      let waveSpeed_ms;
+      if (tension_N && linearDensity_kgm) {
+        waveSpeed_ms = Math.sqrt(tension_N / linearDensity_kgm);
+        if (variables.waveSpeed.status === 'unknown') {
+          const waveSpeed_display = convertUnit(waveSpeed_ms, 'm/s', variables.waveSpeed.unit, 'speed');
+          newResults.waveSpeed = { ...variables.waveSpeed, value: waveSpeed_display.toFixed(2) };
+        }
+      }
+
+      // Calculate fundamental frequency: f₁ = v/(2L)
+      if (waveSpeed_ms && length_m) {
+        const fundamentalFreq_Hz = waveSpeed_ms / (2 * length_m);
+        if (variables.fundamentalFreq.status === 'unknown') {
+          const freq_display = convertUnit(fundamentalFreq_Hz, 'Hz', variables.fundamentalFreq.unit, 'frequency');
+          newResults.fundamentalFreq = { ...variables.fundamentalFreq, value: freq_display.toFixed(1) };
+        }
+
+        // Calculate nth harmonic frequency: fₙ = n × f₁
+        if (variables.harmonicFreq.status === 'unknown') {
+          const harmonicFreq_Hz = harmonicNumber * fundamentalFreq_Hz;
+          const harmonicFreq_display = convertUnit(harmonicFreq_Hz, 'Hz', variables.harmonicFreq.unit, 'frequency');
+          newResults.harmonicFreq = { ...variables.harmonicFreq, value: harmonicFreq_display.toFixed(1) };
+        }
+
+        // Calculate wavelength for fundamental: λ₁ = 2L
+        if (variables.wavelength.status === 'unknown') {
+          const wavelength_m = (2 * length_m) / harmonicNumber; // λₙ = 2L/n
+          const wavelength_display = convertUnit(wavelength_m, 'm', variables.wavelength.unit, 'length');
+          newResults.wavelength = { ...variables.wavelength, value: wavelength_display.toFixed(3) };
+        }
+      }
+
+      // Calculate travel time: t = L/v
+      if (waveSpeed_ms && length_m) {
+        const travelTime_s = length_m / waveSpeed_ms;
+        const travelTime_display = convertUnit(travelTime_s, 's', variables.travelTime.unit, 'time');
+        newResults.travelTime = { ...variables.travelTime, value: travelTime_display.toFixed(6) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-purple-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">String Vibrations & Harmonics:</h2>
+        <p className="text-sm">
+          Calculate string vibration frequencies and wave properties:
+          <br />• Wave speed on string: v = √(T/μ) where T = tension, μ = linear mass density
+          <br />• Fundamental frequency: f₁ = v/(2L) = (1/2L)√(T/μ)
+          <br />• nth Harmonic: fₙ = n × f₁, λₙ = 2L/n
+          <br />• Linear mass density: μ = mass/length
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate String Vibrations
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Linear Mass Density:</strong> μ = {results.linearDensity?.value || variables.linearDensity.value} {variables.linearDensity.unit}</p>
+            <p><strong>Wave Speed:</strong> v = √(T/μ) = {results.waveSpeed?.value} {variables.waveSpeed.unit}</p>
+            <p><strong>Fundamental Frequency:</strong> f₁ = v/(2L) = {results.waveSpeed?.value} / (2 × {variables.length.value}) = {results.fundamentalFreq?.value} {variables.fundamentalFreq.unit}</p>
+            {parseFloat(variables.harmonicNumber.value) > 1 && (
+              <p><strong>{variables.harmonicNumber.value}{parseFloat(variables.harmonicNumber.value) === 2 ? 'nd' : parseFloat(variables.harmonicNumber.value) === 3 ? 'rd' : 'th'} Harmonic:</strong> f{variables.harmonicNumber.value} = {variables.harmonicNumber.value} × f₁ = {results.harmonicFreq?.value} {variables.harmonicFreq.unit}</p>
+            )}
+            <p><strong>Wavelength:</strong> λ = {results.wavelength?.value} {variables.wavelength.unit}</p>
+            <p><strong>Travel Time:</strong> t = L/v = {results.travelTime?.value} {variables.travelTime.unit}</p>
+            <p className="mt-3 font-semibold text-purple-900 text-lg">
+              🎵 <strong>Fundamental Frequency: {results.fundamentalFreq?.value} Hz</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              Note: This is the lowest pitch the string can produce when vibrating in its fundamental mode.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// PV Diagram Calculator
+const PVDiagramCalculator = () => {
+  const [variables, setVariables] = useState({
+    mass: { value: 9.2, status: 'given', unit: 'g', label: 'Mass of He' },
+    molarMass: { value: 4.0, status: 'given', unit: 'g/mol', label: 'Molar Mass of He' },
+    T1: { value: 37, status: 'given', unit: '°C', label: 'T₁ (State 1)' },
+    T2: { value: 657, status: 'given', unit: '°C', label: 'T₂ (State 2)' },
+    T3: { value: 37, status: 'given', unit: '°C', label: 'T₃ (State 3)' },
+    P1: { value: 2.0, status: 'given', unit: 'atm', label: 'P₁ (State 1)' },
+    P2: { value: '', status: 'unknown', unit: 'atm', label: 'P₂ (State 2)' },
+    P3: { value: 2.0, status: 'given', unit: 'atm', label: 'P₃ (State 3)' },
+    V1: { value: '', status: 'unknown', unit: 'L', label: 'V₁ (State 1)' },
+    V2: { value: '', status: 'unknown', unit: 'L', label: 'V₂ (State 2)' },
+    V3: { value: '', status: 'unknown', unit: 'L', label: 'V₃ (State 3)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key.startsWith('T')) unitType = 'temperature';
+        else if (key.startsWith('P')) unitType = 'pressure';
+        else if (key.startsWith('V')) unitType = 'volume';
+        else if (key === 'mass') unitType = 'mass';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      const mass_g = convertUnit(variables.mass.value, variables.mass.unit, 'g', 'mass');
+      const molarMass = parseFloat(variables.molarMass.value);
+      const R = 0.0821;
+      const n = mass_g / molarMass;
+
+      const T1_K = convertUnit(variables.T1.value, variables.T1.unit, 'K', 'temperature');
+      const T2_K = convertUnit(variables.T2.value, variables.T2.unit, 'K', 'temperature');
+      const T3_K = convertUnit(variables.T3.value, variables.T3.unit, 'K', 'temperature');
+      
+      let P1_atm, P2_atm, P3_atm, V1_L, V2_L, V3_L;
+
+      if (variables.P1.status === 'given' && variables.P1.value) {
+        P1_atm = convertUnit(variables.P1.value, variables.P1.unit, 'atm', 'pressure');
+      }
+      if (variables.P2.status === 'given' && variables.P2.value) {
+        P2_atm = convertUnit(variables.P2.value, variables.P2.unit, 'atm', 'pressure');
+      }
+      if (variables.P3.status === 'given' && variables.P3.value) {
+        P3_atm = convertUnit(variables.P3.value, variables.P3.unit, 'atm', 'pressure');
+      }
+
+      if (!V1_L && P1_atm && T1_K) {
+        V1_L = (n * R * T1_K) / P1_atm;
+      }
+      
+      if (V1_L && !V2_L) {
+        V2_L = V1_L;
+      }
+      
+      if (P1_atm && T1_K && T2_K && !P2_atm) {
+        P2_atm = P1_atm * (T2_K / T1_K);
+      }
+
+      if (P2_atm && V2_L && P3_atm && !V3_L) {
+        V3_L = (P2_atm * V2_L) / P3_atm;
+      }
+
+      if (variables.V1.status === 'unknown' && V1_L) {
+        const V1_display = convertUnit(V1_L, 'L', variables.V1.unit, 'volume');
+        newResults.V1 = { ...variables.V1, value: V1_display.toFixed(3) };
+      }
+      if (variables.P2.status === 'unknown' && P2_atm) {
+        const P2_display = convertUnit(P2_atm, 'atm', variables.P2.unit, 'pressure');
+        newResults.P2 = { ...variables.P2, value: P2_display.toFixed(3) };
+      }
+      if (variables.V2.status === 'unknown' && V2_L) {
+        const V2_display = convertUnit(V2_L, 'L', variables.V2.unit, 'volume');
+        newResults.V2 = { ...variables.V2, value: V2_display.toFixed(3) };
+      }
+      if (variables.V3.status === 'unknown' && V3_L) {
+        const V3_display = convertUnit(V3_L, 'L', variables.V3.unit, 'volume');
+        newResults.V3 = { ...variables.V3, value: V3_display.toFixed(3) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-blue-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">pV Diagram Problem:</h2>
+        <p className="text-sm">
+          Helium gas undergoes the process 1 → 2 → 3 where:
+          <br />• Process 1→2: Constant volume (isochoric)
+          <br />• Process 2→3: Isothermal
+          <br />• Find V₃ and other unknown variables
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Unknowns
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Moles of gas:</strong> {(convertUnit(variables.mass.value, variables.mass.unit, 'g', 'mass') / parseFloat(variables.molarMass.value)).toFixed(3)} mol</p>
+            <p><strong>V₁:</strong> {results.V1?.value} {variables.V1.unit}</p>
+            <p><strong>P₂:</strong> {results.P2?.value} {variables.P2.unit}</p>
+            <p><strong>V₂:</strong> {results.V2?.value} {variables.V2.unit}</p>
+            <p><strong>V₃:</strong> {results.V3?.value} {variables.V3.unit}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const IdealGasMassCalculator = () => {
+  const [variables, setVariables] = useState({
+    volume: { value: 5.2, status: 'given', unit: 'L', label: 'Volume (V)' },
+    pressure: { value: 3.3, status: 'given', unit: 'atm', label: 'Pressure (P)' },
+    temperature: { value: 260, status: 'given', unit: 'K', label: 'Temperature (T)' },
+    molarMass: { value: 20.2, status: 'given', unit: 'g/mol', label: 'Molar Mass of Ne' },
+    avogadro: { value: 6.022e23, status: 'given', unit: 'molecules/mol', label: 'Avogadro\'s Number' },
+    moles: { value: '', status: 'unknown', unit: 'mol', label: 'Number of Moles (n)' },
+    mass: { value: '', status: 'unknown', unit: 'g', label: 'Mass of Gas' },
+    molecules: { value: '', status: 'unknown', unit: 'molecules', label: 'Number of Molecules' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'temperature') unitType = 'temperature';
+        else if (key === 'pressure') unitType = 'pressure';
+        else if (key === 'volume') unitType = 'volume';
+        else if (key === 'mass') unitType = 'mass';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      const R = 0.0821;
+      const molarMass = parseFloat(variables.molarMass.value);
+      const avogadro = parseFloat(variables.avogadro.value);
+
+      let V_L, P_atm, T_K, n_mol, mass_g;
+
+      if (variables.volume.status === 'given' && variables.volume.value) {
+        V_L = convertUnit(variables.volume.value, variables.volume.unit, 'L', 'volume');
+      }
+      if (variables.pressure.status === 'given' && variables.pressure.value) {
+        P_atm = convertUnit(variables.pressure.value, variables.pressure.unit, 'atm', 'pressure');
+      }
+      if (variables.temperature.status === 'given' && variables.temperature.value) {
+        T_K = convertUnit(variables.temperature.value, variables.temperature.unit, 'K', 'temperature');
+      }
+      if (variables.moles.status === 'given' && variables.moles.value) {
+        n_mol = parseFloat(variables.moles.value);
+      }
+      if (variables.mass.status === 'given' && variables.mass.value) {
+        mass_g = convertUnit(variables.mass.value, variables.mass.unit, 'g', 'mass');
+        n_mol = mass_g / molarMass;
+      }
+
+      if (!n_mol && P_atm && V_L && T_K) {
+        n_mol = (P_atm * V_L) / (R * T_K);
+      }
+      if (!P_atm && n_mol && V_L && T_K) {
+        P_atm = (n_mol * R * T_K) / V_L;
+      }
+      if (!V_L && n_mol && P_atm && T_K) {
+        V_L = (n_mol * R * T_K) / P_atm;
+      }
+      if (!T_K && n_mol && P_atm && V_L) {
+        T_K = (P_atm * V_L) / (n_mol * R);
+      }
+
+      if (n_mol) {
+        if (!mass_g) {
+          mass_g = n_mol * molarMass;
+        }
+        const molecules = n_mol * avogadro;
+
+        if (variables.moles.status === 'unknown') {
+          newResults.moles = { ...variables.moles, value: n_mol.toFixed(4) };
+        }
+        if (variables.mass.status === 'unknown') {
+          const mass_display = convertUnit(mass_g, 'g', variables.mass.unit, 'mass');
+          newResults.mass = { ...variables.mass, value: mass_display.toFixed(3) };
+        }
+        if (variables.molecules.status === 'unknown') {
+          newResults.molecules = { ...variables.molecules, value: molecules.toExponential(3) };
+        }
+        if (variables.pressure.status === 'unknown' && P_atm) {
+          const P_display = convertUnit(P_atm, 'atm', variables.pressure.unit, 'pressure');
+          newResults.pressure = { ...variables.pressure, value: P_display.toFixed(3) };
+        }
+        if (variables.volume.status === 'unknown' && V_L) {
+          const V_display = convertUnit(V_L, 'L', variables.volume.unit, 'volume');
+          newResults.volume = { ...variables.volume, value: V_display.toFixed(3) };
+        }
+        if (variables.temperature.status === 'unknown' && T_K) {
+          const T_display = convertUnit(T_K, 'K', variables.temperature.unit, 'temperature');
+          newResults.temperature = { ...variables.temperature, value: T_display.toFixed(2) };
+        }
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-purple-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Ideal Gas Mass Problem:</h2>
+        <p className="text-sm">
+          A volume of neon gas is at given pressure and temperature conditions.
+          <br />• Use the ideal gas law: PV = nRT
+          <br />• Calculate mass using: mass = n × molar mass
+          <br />• Find the number of molecules using Avogadro's number
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Unknowns
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Number of moles:</strong> {results.moles?.value} mol</p>
+            <p><strong>Mass of gas:</strong> {results.mass?.value} {variables.mass.unit}</p>
+            <p><strong>Number of molecules:</strong> {results.molecules?.value} molecules</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const HeatFlowCalculator = () => {
+  const [variables, setVariables] = useState({
+    moles: { value: 3.0, status: 'given', unit: 'mol', label: 'Number of Moles (n)' },
+    Cv: { value: 4.9, status: 'given', unit: 'cal/(mol·K)', label: 'Heat Capacity at Constant Volume (Cv)' },
+    Cp: { value: 7.9, status: 'given', unit: 'cal/(mol·K)', label: 'Heat Capacity at Constant Pressure (Cp)' },
+    T1: { value: 300, status: 'given', unit: 'K', label: 'Initial Temperature (T₁)' },
+    T2: { value: 320, status: 'given', unit: 'K', label: 'Intermediate Temperature (T₂)' },
+    T3: { value: 300, status: 'given', unit: 'K', label: 'Final Temperature (T₃)' },
+    Q1: { value: '', status: 'unknown', unit: 'cal', label: 'Heat Flow Step 1 (Q₁)' },
+    Q2: { value: '', status: 'unknown', unit: 'cal', label: 'Heat Flow Step 2 (Q₂)' },
+    Qtotal: { value: '', status: 'unknown', unit: 'cal', label: 'Total Heat Flow (Q_total)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'temperature' || key.startsWith('T')) unitType = 'temperature';
+        else if (key.includes('Cp') || key.includes('Cv')) unitType = 'heatCapacity';
+        else if (key.includes('Q') || key.includes('heat')) unitType = 'energy';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      const n = parseFloat(variables.moles.value);
+      const Cv_cal = convertUnit(variables.Cv.value, variables.Cv.unit, 'cal/(mol·K)', 'heatCapacity');
+      const Cp_cal = convertUnit(variables.Cp.value, variables.Cp.unit, 'cal/(mol·K)', 'heatCapacity');
+      const T1_K = convertUnit(variables.T1.value, variables.T1.unit, 'K', 'temperature');
+      const T2_K = convertUnit(variables.T2.value, variables.T2.unit, 'K', 'temperature');
+      const T3_K = convertUnit(variables.T3.value, variables.T3.unit, 'K', 'temperature');
+
+      const Q1_cal = n * Cp_cal * (T2_K - T1_K);
+      const Q2_cal = n * Cv_cal * (T3_K - T2_K);
+      const Qtotal_cal = Q1_cal + Q2_cal;
+
+      if (variables.Q1.status === 'unknown') {
+        const Q1_display = convertUnit(Q1_cal, 'cal', variables.Q1.unit, 'energy');
+        newResults.Q1 = { ...variables.Q1, value: Q1_display.toFixed(2) };
+      }
+      
+      if (variables.Q2.status === 'unknown') {
+        const Q2_display = convertUnit(Q2_cal, 'cal', variables.Q2.unit, 'energy');
+        newResults.Q2 = { ...variables.Q2, value: Q2_display.toFixed(2) };
+      }
+      
+      if (variables.Qtotal.status === 'unknown') {
+        const Qtotal_display = convertUnit(Qtotal_cal, 'cal', variables.Qtotal.unit, 'energy');
+        newResults.Qtotal = { ...variables.Qtotal, value: Qtotal_display.toFixed(2) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-green-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Heat Flow in Two-Step Process:</h2>
+        <p className="text-sm">
+          Calculate heat flow for a two-step thermodynamic process:
+          <br />• Step 1: Constant pressure heating (T₁ → T₂): Q₁ = n × Cp × ΔT
+          <br />• Step 2: Constant volume cooling (T₂ → T₃): Q₂ = n × Cv × ΔT
+          <br />• Total heat flow: Q_total = Q₁ + Q₂
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Heat Flow
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Step 1 (Constant Pressure):</strong> Q₁ = {results.Q1?.value} {variables.Q1.unit}</p>
+            <p><strong>Step 2 (Constant Volume):</strong> Q₂ = {results.Q2?.value} {variables.Q2.unit}</p>
+            <p><strong>Total Heat Flow:</strong> Q_total = {results.Qtotal?.value} {variables.Qtotal.unit}</p>
+            <p className="mt-3 font-semibold text-green-900">
+              {parseFloat(results.Qtotal?.value) > 0 ? 
+                '🔥 Net heat flows INTO the gas' : 
+                '❄️ Net heat flows OUT OF the gas'}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RMSSpeedCalculator = () => {
+  const [variables, setVariables] = useState({
+    MW1: { value: 44, status: 'given', unit: 'g/mol', label: 'Molecular Weight 1 (MW₁)' },
+    MW2: { value: 18, status: 'given', unit: 'g/mol', label: 'Molecular Weight 2 (MW₂)' },
+    rmsSpeed1: { value: 496, status: 'given', unit: 'm/s', label: 'RMS Speed 1 (v₁)' },
+    rmsSpeed2: { value: '', status: 'unknown', unit: 'm/s', label: 'RMS Speed 2 (v₂)' },
+    temperature: { value: '', status: 'unknown', unit: 'K', label: 'Temperature (T)' },
+    R: { value: 8.314, status: 'given', unit: 'J/(mol·K)', label: 'Gas Constant R' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'temperature') unitType = 'temperature';
+        else if (key.includes('MW') || key.includes('molecularWeight')) unitType = 'molarMass';
+        else if (key.includes('rmsSpeed') || key.includes('speed')) unitType = 'speed';
+        else if (key.includes('R')) unitType = 'heatCapacity';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      const MW1_g = convertUnit(variables.MW1.value, variables.MW1.unit, 'g/mol', 'molarMass');
+      const MW2_g = convertUnit(variables.MW2.value, variables.MW2.unit, 'g/mol', 'molarMass');
+      const R_J = convertUnit(variables.R.value, variables.R.unit, 'J/(mol·K)', 'heatCapacity');
+
+      if (variables.rmsSpeed1.status === 'given' && variables.rmsSpeed1.value) {
+        const v1_ms = convertUnit(variables.rmsSpeed1.value, variables.rmsSpeed1.unit, 'm/s', 'speed');
+        
+        if (variables.rmsSpeed2.status === 'unknown') {
+          const v2_ms = v1_ms * Math.sqrt(MW1_g / MW2_g);
+          const v2_display = convertUnit(v2_ms, 'm/s', variables.rmsSpeed2.unit, 'speed');
+          newResults.rmsSpeed2 = { ...variables.rmsSpeed2, value: v2_display.toFixed(2) };
+        }
+
+        if (variables.temperature.status === 'unknown') {
+          const MW1_kg = MW1_g / 1000;
+          const T_K = (v1_ms * v1_ms * MW1_kg) / (3 * R_J);
+          const T_display = convertUnit(T_K, 'K', variables.temperature.unit, 'temperature');
+          newResults.temperature = { ...variables.temperature, value: T_display.toFixed(2) };
+        }
+      }
+      
+      if (variables.rmsSpeed2.status === 'given' && variables.rmsSpeed2.value) {
+        const v2_ms = convertUnit(variables.rmsSpeed2.value, variables.rmsSpeed2.unit, 'm/s', 'speed');
+        
+        if (variables.rmsSpeed1.status === 'unknown') {
+          const v1_ms = v2_ms * Math.sqrt(MW2_g / MW1_g);
+          const v1_display = convertUnit(v1_ms, 'm/s', variables.rmsSpeed1.unit, 'speed');
+          newResults.rmsSpeed1 = { ...variables.rmsSpeed1, value: v1_display.toFixed(2) };
+        }
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-indigo-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Root-Mean-Square Speed Problem:</h2>
+        <p className="text-sm">
+          Calculate molecular speeds using kinetic theory:
+          <br />• RMS Speed formula: v_rms = √(3RT/M)
+          <br />• At same temperature: v₁/v₂ = √(M₂/M₁)
+          <br />• Find the RMS speed of different molecules at the same temperature
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate RMS Speeds
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Speed Ratio:</strong> v₂/v₁ = √(MW₁/MW₂) = {Math.sqrt(parseFloat(variables.MW1.value)/parseFloat(variables.MW2.value)).toFixed(3)}</p>
+            <p><strong>RMS Speed 1:</strong> {results.rmsSpeed1?.value || variables.rmsSpeed1.value} {variables.rmsSpeed1.unit}</p>
+            <p><strong>RMS Speed 2:</strong> {results.rmsSpeed2?.value} {variables.rmsSpeed2.unit}</p>
+            {results.temperature && (
+              <p><strong>Temperature:</strong> {results.temperature.value} {variables.temperature.unit}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CarnotEngineCalculator = () => {
+  const [variables, setVariables] = useState({
+    Thot: { value: 417, status: 'given', unit: 'K', label: 'Hot Reservoir Temperature (T_hot)' },
+    Tcold: { value: 287, status: 'given', unit: 'K', label: 'Cold Reservoir Temperature (T_cold)' },
+    Qhot: { value: 2400, status: 'given', unit: 'J', label: 'Heat Absorbed (Q_hot)' },
+    Qcold: { value: '', status: 'unknown', unit: 'J', label: 'Heat Rejected (Q_cold)' },
+    Work: { value: '', status: 'unknown', unit: 'J', label: 'Work Done (W)' },
+    efficiency: { value: '', status: 'unknown', unit: '%', label: 'Efficiency (η)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'Thot' || key === 'Tcold') unitType = 'temperature';
+        else if (key === 'Qhot' || key === 'Qcold' || key === 'Work') unitType = 'energy';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      const Thot_K = convertUnit(variables.Thot.value, variables.Thot.unit, 'K', 'temperature');
+      const Tcold_K = convertUnit(variables.Tcold.value, variables.Tcold.unit, 'K', 'temperature');
+
+      const efficiency_decimal = 1 - (Tcold_K / Thot_K);
+      const efficiency_percent = efficiency_decimal * 100;
+
+      newResults.efficiency = { ...variables.efficiency, value: efficiency_percent.toFixed(2) };
+
+      if (variables.Qhot.status === 'given' && variables.Qhot.value) {
+        const Qhot_J = convertUnit(variables.Qhot.value, variables.Qhot.unit, 'J', 'energy');
+        
+        if (variables.Work.status === 'unknown') {
+          const Work_J = efficiency_decimal * Qhot_J;
+          const Work_display = convertUnit(Work_J, 'J', variables.Work.unit, 'energy');
+          newResults.Work = { ...variables.Work, value: Work_display.toFixed(2) };
+        }
+        
+        if (variables.Qcold.status === 'unknown') {
+          const Work_J = efficiency_decimal * Qhot_J;
+          const Qcold_J = Qhot_J - Work_J;
+          const Qcold_display = convertUnit(Qcold_J, 'J', variables.Qcold.unit, 'energy');
+          newResults.Qcold = { ...variables.Qcold, value: Qcold_display.toFixed(2) };
+        }
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-red-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Carnot Engine Problem:</h2>
+        <p className="text-sm">
+          Calculate work and efficiency for the most efficient heat engine:
+          <br />• Carnot efficiency: η = 1 - T_cold/T_hot
+          <br />• Work done: W = η × Q_hot
+          <br />• Energy conservation: Q_hot = W + Q_cold
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Carnot Engine
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Carnot Efficiency:</strong> {results.efficiency?.value}%</p>
+            <p><strong>Work Done:</strong> {results.Work?.value} {variables.Work.unit}</p>
+            <p><strong>Heat Rejected:</strong> {results.Qcold?.value} {variables.Qcold.unit}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Double-Slit Interference Calculator
+const DoubleslitCalculator = () => {
+  const [variables, setVariables] = useState({
+    wavelength1: { value: 700, status: 'given', unit: 'nm', label: 'Known Wavelength (λ₁)' },
+    wavelength2: { value: '', status: 'unknown', unit: 'nm', label: 'Unknown Wavelength (λ₂)' },
+    order1: { value: 4, status: 'given', unit: '', label: 'Order of λ₁ Fringe (m₁)' },
+    order2: { value: 5, status: 'given', unit: '', label: 'Order of λ₂ Fringe (m₂)' },
+    slitSeparation: { value: '', status: 'unknown', unit: 'μm', label: 'Slit Separation (d)' },
+    screenDistance: { value: '', status: 'unknown', unit: 'm', label: 'Screen Distance (D)' },
+    fringePosition1: { value: '', status: 'unknown', unit: 'mm', label: 'Fringe Position λ₁ (y₁)' },
+    fringePosition2: { value: '', status: 'unknown', unit: 'mm', label: 'Fringe Position λ₂ (y₂)' },
+    fringeSpacing: { value: '', status: 'unknown', unit: 'mm', label: 'Fringe Spacing (Δy)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key.includes('wavelength')) unitType = 'length';
+        else if (key.includes('slitSeparation')) unitType = 'length';
+        else if (key.includes('screenDistance')) unitType = 'length';
+        else if (key.includes('fringePosition') || key.includes('fringeSpacing')) unitType = 'length';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      // Convert to standard units (meters)
+      let wavelength1_m, wavelength2_m, slitSeparation_m, screenDistance_m;
+      const order1 = parseFloat(variables.order1.value);
+      const order2 = parseFloat(variables.order2.value);
+
+      if (variables.wavelength1.status === 'given' && variables.wavelength1.value) {
+        wavelength1_m = convertUnit(variables.wavelength1.value, variables.wavelength1.unit, 'm', 'length');
+      }
+      if (variables.wavelength2.status === 'given' && variables.wavelength2.value) {
+        wavelength2_m = convertUnit(variables.wavelength2.value, variables.wavelength2.unit, 'm', 'length');
+      }
+      if (variables.slitSeparation.status === 'given' && variables.slitSeparation.value) {
+        slitSeparation_m = convertUnit(variables.slitSeparation.value, variables.slitSeparation.unit, 'm', 'length');
+      }
+      if (variables.screenDistance.status === 'given' && variables.screenDistance.value) {
+        screenDistance_m = convertUnit(variables.screenDistance.value, variables.screenDistance.unit, 'm', 'length');
+      }
+
+      // Overlapping condition: m₁λ₁ = m₂λ₂ (same fringe position)
+      if (wavelength1_m && order1 && order2 && !wavelength2_m) {
+        wavelength2_m = (order1 * wavelength1_m) / order2;
+        const wavelength2_display = convertUnit(wavelength2_m, 'm', variables.wavelength2.unit, 'length');
+        newResults.wavelength2 = { ...variables.wavelength2, value: wavelength2_display.toFixed(1) };
+      }
+      
+      if (wavelength2_m && order1 && order2 && !wavelength1_m) {
+        wavelength1_m = (order2 * wavelength2_m) / order1;
+        const wavelength1_display = convertUnit(wavelength1_m, 'm', variables.wavelength1.unit, 'length');
+        newResults.wavelength1 = { ...variables.wavelength1, value: wavelength1_display.toFixed(1) };
+      }
+
+      // Fringe position: y = mλD/d
+      if (slitSeparation_m && screenDistance_m) {
+        if (wavelength1_m && order1) {
+          const y1_m = (order1 * wavelength1_m * screenDistance_m) / slitSeparation_m;
+          const y1_display = convertUnit(y1_m, 'm', variables.fringePosition1.unit, 'length');
+          newResults.fringePosition1 = { ...variables.fringePosition1, value: y1_display.toFixed(3) };
+        }
+        
+        if (wavelength2_m && order2) {
+          const y2_m = (order2 * wavelength2_m * screenDistance_m) / slitSeparation_m;
+          const y2_display = convertUnit(y2_m, 'm', variables.fringePosition2.unit, 'length');
+          newResults.fringePosition2 = { ...variables.fringePosition2, value: y2_display.toFixed(3) };
+        }
+
+        // Fringe spacing: Δy = λD/d
+        if (wavelength1_m) {
+          const spacing_m = (wavelength1_m * screenDistance_m) / slitSeparation_m;
+          const spacing_display = convertUnit(spacing_m, 'm', variables.fringeSpacing.unit, 'length');
+          newResults.fringeSpacing = { ...variables.fringeSpacing, value: spacing_display.toFixed(3) };
+        }
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-blue-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Double-Slit Interference:</h2>
+        <p className="text-sm">
+          Calculate wavelengths and fringe patterns for two-source interference:
+          <br />• Bright fringe condition: Path difference = mλ
+          <br />• Fringe position: y = mλD/d
+          <br />• Overlapping fringes: m₁λ₁ = m₂λ₂
+          <br />• Fringe spacing: Δy = λD/d
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Interference
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            {results.wavelength2 && (
+              <p><strong>Overlapping Condition:</strong> m₁λ₁ = m₂λ₂ (same fringe position)</p>
+            )}
+            {results.wavelength2 && (
+              <p><strong>Unknown Wavelength:</strong> λ₂ = (m₁/m₂) × λ₁ = ({variables.order1.value}/{variables.order2.value}) × {variables.wavelength1.value} nm = {results.wavelength2.value} nm</p>
+            )}
+            {results.fringePosition1 && (
+              <p><strong>Fringe Position λ₁:</strong> y₁ = m₁λ₁D/d = {results.fringePosition1.value} {variables.fringePosition1.unit}</p>
+            )}
+            {results.fringePosition2 && (
+              <p><strong>Fringe Position λ₂:</strong> y₂ = m₂λ₂D/d = {results.fringePosition2.value} {variables.fringePosition2.unit}</p>
+            )}
+            {results.fringeSpacing && (
+              <p><strong>Fringe Spacing:</strong> Δy = λD/d = {results.fringeSpacing.value} {variables.fringeSpacing.unit}</p>
+            )}
+            <p className="mt-3 font-semibold text-blue-900 text-lg">
+              🌈 <strong>Unknown Wavelength: {results.wavelength2?.value} nm</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              This wavelength corresponds to {parseFloat(results.wavelength2?.value) < 450 ? 'blue' : parseFloat(results.wavelength2?.value) < 495 ? 'blue-green' : parseFloat(results.wavelength2?.value) < 570 ? 'green' : parseFloat(results.wavelength2?.value) < 590 ? 'yellow' : parseFloat(results.wavelength2?.value) < 620 ? 'orange' : 'red'} light.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Spherical Mirror Calculator
+const SphericalMirrorCalculator = () => {
+  const [variables, setVariables] = useState({
+    radius: { value: 20, status: 'given', unit: 'cm', label: 'Radius of Curvature (R)' },
+    focalLength: { value: '', status: 'unknown', unit: 'cm', label: 'Focal Length (f)' },
+    objectDistance: { value: '', status: 'unknown', unit: 'cm', label: 'Object Distance (do)' },
+    imageDistance: { value: 40, status: 'given', unit: 'cm', label: 'Image Distance (di)' },
+    magnification: { value: '', status: 'unknown', unit: '', label: 'Magnification (M)' },
+    objectHeight: { value: '', status: 'unknown', unit: 'cm', label: 'Object Height (ho)' },
+    imageHeight: { value: '', status: 'unknown', unit: 'cm', label: 'Image Height (hi)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'length';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      let radius, focalLength, objectDistance, imageDistance, magnification, objectHeight, imageHeight;
+
+      if (variables.radius.status === 'given' && variables.radius.value) {
+        radius = parseFloat(variables.radius.value);
+        focalLength = radius / 2; // f = R/2 for spherical mirrors
+      }
+      if (variables.focalLength.status === 'given' && variables.focalLength.value) {
+        focalLength = parseFloat(variables.focalLength.value);
+        radius = focalLength * 2;
+      }
+      if (variables.objectDistance.status === 'given' && variables.objectDistance.value) {
+        objectDistance = parseFloat(variables.objectDistance.value);
+      }
+      if (variables.imageDistance.status === 'given' && variables.imageDistance.value) {
+        imageDistance = parseFloat(variables.imageDistance.value);
+      }
+      if (variables.magnification.status === 'given' && variables.magnification.value) {
+        magnification = parseFloat(variables.magnification.value);
+      }
+      if (variables.objectHeight.status === 'given' && variables.objectHeight.value) {
+        objectHeight = parseFloat(variables.objectHeight.value);
+      }
+      if (variables.imageHeight.status === 'given' && variables.imageHeight.value) {
+        imageHeight = parseFloat(variables.imageHeight.value);
+      }
+
+      // Mirror equation: 1/f = 1/do + 1/di
+      if (focalLength && imageDistance && !objectDistance) {
+        objectDistance = 1 / (1/focalLength - 1/imageDistance);
+      }
+      if (focalLength && objectDistance && !imageDistance) {
+        imageDistance = 1 / (1/focalLength - 1/objectDistance);
+      }
+      if (objectDistance && imageDistance && !focalLength) {
+        focalLength = 1 / (1/objectDistance + 1/imageDistance);
+      }
+
+      // Magnification: M = -di/do = hi/ho
+      if (objectDistance && imageDistance && !magnification) {
+        magnification = -imageDistance / objectDistance;
+      }
+      if (magnification && objectDistance && !imageDistance) {
+        imageDistance = -magnification * objectDistance;
+      }
+      if (magnification && imageDistance && !objectDistance) {
+        objectDistance = -imageDistance / magnification;
+      }
+
+      // Height relationship
+      if (magnification && objectHeight && !imageHeight) {
+        imageHeight = magnification * objectHeight;
+      }
+      if (magnification && imageHeight && !objectHeight) {
+        objectHeight = imageHeight / magnification;
+      }
+
+      // Update results
+      if (variables.focalLength.status === 'unknown' && focalLength) {
+        newResults.focalLength = { ...variables.focalLength, value: focalLength.toFixed(2) };
+      }
+      if (variables.radius.status === 'unknown' && radius) {
+        newResults.radius = { ...variables.radius, value: radius.toFixed(2) };
+      }
+      if (variables.objectDistance.status === 'unknown' && objectDistance) {
+        newResults.objectDistance = { ...variables.objectDistance, value: objectDistance.toFixed(2) };
+      }
+      if (variables.imageDistance.status === 'unknown' && imageDistance) {
+        newResults.imageDistance = { ...variables.imageDistance, value: imageDistance.toFixed(2) };
+      }
+      if (variables.magnification.status === 'unknown' && magnification) {
+        newResults.magnification = { ...variables.magnification, value: magnification.toFixed(3) };
+      }
+      if (variables.objectHeight.status === 'unknown' && objectHeight) {
+        newResults.objectHeight = { ...variables.objectHeight, value: objectHeight.toFixed(2) };
+      }
+      if (variables.imageHeight.status === 'unknown' && imageHeight) {
+        newResults.imageHeight = { ...variables.imageHeight, value: imageHeight.toFixed(2) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-orange-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Spherical Mirror Optics:</h2>
+        <p className="text-sm">
+          Calculate object and image properties for spherical mirrors:
+          <br />• Mirror equation: 1/f = 1/do + 1/di
+          <br />• Focal length: f = R/2 (R = radius of curvature)
+          <br />• Magnification: M = -di/do = hi/ho
+          <br />• Sign conventions: Concave f&gt;0, Real image di&gt;0
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Mirror Optics
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Focal Length:</strong> f = R/2 = {variables.radius.value}/2 = {results.focalLength?.value || (parseFloat(variables.radius.value)/2).toFixed(2)} cm</p>
+            <p><strong>Mirror Equation:</strong> 1/f = 1/do + 1/di</p>
+            <p><strong>Object Distance:</strong> do = {results.objectDistance?.value} cm</p>
+            <p><strong>Image Distance:</strong> di = {results.imageDistance?.value || variables.imageDistance.value} cm</p>
+            <p><strong>Magnification:</strong> M = -di/do = {results.magnification?.value}</p>
+            <p className="mt-3 font-semibold text-orange-900 text-lg">
+              🪞 <strong>Object Distance: {results.objectDistance?.value} cm</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              Image is {parseFloat(results.imageDistance?.value || variables.imageDistance.value) > 0 ? 'real' : 'virtual'} and {Math.abs(parseFloat(results.magnification?.value || 0)) > 1 ? 'magnified' : 'reduced'}.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Lens Calculator
+// Doppler Effect Calculator
+const DopplerEffectCalculator = () => {
+  const [variables, setVariables] = useState({
+    observedFreq1: { value: 50.0, status: 'given', unit: 'Hz', label: 'Frequency Approaching (f₁)' },
+    observedFreq2: { value: 40.0, status: 'given', unit: 'Hz', label: 'Frequency Receding (f₂)' },
+    sourceFreq: { value: '', status: 'unknown', unit: 'Hz', label: 'Source Frequency (f₀)' },
+    sourceSpeed: { value: '', status: 'unknown', unit: 'm/s', label: 'Source Speed (v_s)' },
+    observerSpeed: { value: 0, status: 'given', unit: 'm/s', label: 'Observer Speed (v_o)' },
+    soundSpeed: { value: 343, status: 'given', unit: 'm/s', label: 'Sound Speed (v)' },
+    approachingFreq: { value: '', status: 'unknown', unit: 'Hz', label: 'Approaching Frequency' },
+    recedingFreq: { value: '', status: 'unknown', unit: 'Hz', label: 'Receding Frequency' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key.includes('Freq')) unitType = 'frequency';
+        else if (key.includes('Speed')) unitType = 'speed';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      // Convert to standard units
+      const soundSpeed_ms = convertUnit(variables.soundSpeed.value, variables.soundSpeed.unit, 'm/s', 'speed');
+      const observerSpeed_ms = convertUnit(variables.observerSpeed.value || 0, variables.observerSpeed.unit, 'm/s', 'speed');
+      
+      let sourceSpeed_ms, sourceFreq_Hz, observedFreq1_Hz, observedFreq2_Hz;
+
+      if (variables.sourceSpeed.status === 'given' && variables.sourceSpeed.value) {
+        sourceSpeed_ms = convertUnit(variables.sourceSpeed.value, variables.sourceSpeed.unit, 'm/s', 'speed');
+      }
+      if (variables.sourceFreq.status === 'given' && variables.sourceFreq.value) {
+        sourceFreq_Hz = convertUnit(variables.sourceFreq.value, variables.sourceFreq.unit, 'Hz', 'frequency');
+      }
+      if (variables.observedFreq1.status === 'given' && variables.observedFreq1.value) {
+        observedFreq1_Hz = convertUnit(variables.observedFreq1.value, variables.observedFreq1.unit, 'Hz', 'frequency');
+      }
+      if (variables.observedFreq2.status === 'given' && variables.observedFreq2.value) {
+        observedFreq2_Hz = convertUnit(variables.observedFreq2.value, variables.observedFreq2.unit, 'Hz', 'frequency');
+      }
+
+      // Car problem: find source speed from approaching and receding frequencies
+      if (observedFreq1_Hz && observedFreq2_Hz && !sourceSpeed_ms && !sourceFreq_Hz) {
+        // f₁ = f₀(v + v_o)/(v - v_s)  (approaching)
+        // f₂ = f₀(v + v_o)/(v + v_s)  (receding)
+        // Dividing: f₁/f₂ = (v + v_s)/(v - v_s)
+        // Solving: v_s = v(f₁ - f₂)/(f₁ + f₂)
+        sourceSpeed_ms = soundSpeed_ms * (observedFreq1_Hz - observedFreq2_Hz) / (observedFreq1_Hz + observedFreq2_Hz);
+        
+        // Source frequency: f₀ = f₁(v - v_s)/(v + v_o)
+        sourceFreq_Hz = observedFreq1_Hz * (soundSpeed_ms - sourceSpeed_ms) / (soundSpeed_ms + observerSpeed_ms);
+      }
+
+      // Forward calculation: given source freq and speed, find observed frequencies
+      if (sourceFreq_Hz && sourceSpeed_ms) {
+        const approachingFreq_Hz = sourceFreq_Hz * (soundSpeed_ms + observerSpeed_ms) / (soundSpeed_ms - sourceSpeed_ms);
+        const recedingFreq_Hz = sourceFreq_Hz * (soundSpeed_ms + observerSpeed_ms) / (soundSpeed_ms + sourceSpeed_ms);
+        
+        if (variables.approachingFreq.status === 'unknown') {
+          const freq_display = convertUnit(approachingFreq_Hz, 'Hz', variables.approachingFreq.unit, 'frequency');
+          newResults.approachingFreq = { ...variables.approachingFreq, value: freq_display.toFixed(2) };
+        }
+        if (variables.recedingFreq.status === 'unknown') {
+          const freq_display = convertUnit(recedingFreq_Hz, 'Hz', variables.recedingFreq.unit, 'frequency');
+          newResults.recedingFreq = { ...variables.recedingFreq, value: freq_display.toFixed(2) };
+        }
+      }
+
+      // Update results
+      if (variables.sourceSpeed.status === 'unknown' && sourceSpeed_ms) {
+        const speed_display = convertUnit(sourceSpeed_ms, 'm/s', variables.sourceSpeed.unit, 'speed');
+        newResults.sourceSpeed = { ...variables.sourceSpeed, value: speed_display.toFixed(2) };
+      }
+      if (variables.sourceFreq.status === 'unknown' && sourceFreq_Hz) {
+        const freq_display = convertUnit(sourceFreq_Hz, 'Hz', variables.sourceFreq.unit, 'frequency');
+        newResults.sourceFreq = { ...variables.sourceFreq, value: freq_display.toFixed(2) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-red-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Doppler Effect:</h2>
+        <p className="text-sm">
+          Calculate frequency shifts due to relative motion:
+          <br />• Approaching: f' = f₀(v ± v_o)/(v ∓ v_s)
+          <br />• Use + for observer/source moving toward each other
+          <br />• Car problem: v_s = v(f₁ - f₂)/(f₁ + f₂)
+          <br />• Works for sound, light, and other waves
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Doppler Effect
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Source Speed:</strong> v_s = v(f₁ - f₂)/(f₁ + f₂) = {results.sourceSpeed?.value} {variables.sourceSpeed.unit}</p>
+            <p><strong>Source Frequency:</strong> f₀ = {results.sourceFreq?.value} {variables.sourceFreq.unit}</p>
+            {results.approachingFreq && (
+              <p><strong>Approaching Frequency:</strong> f₁ = {results.approachingFreq.value} {variables.approachingFreq.unit}</p>
+            )}
+            {results.recedingFreq && (
+              <p><strong>Receding Frequency:</strong> f₂ = {results.recedingFreq.value} {variables.recedingFreq.unit}</p>
+            )}
+            <p className="mt-3 font-semibold text-red-900 text-lg">
+              🚗 <strong>Car Speed: {results.sourceSpeed?.value} {variables.sourceSpeed.unit}</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              The car is moving at {((parseFloat(results.sourceSpeed?.value) || 0) * 3.6).toFixed(1)} km/h or {((parseFloat(results.sourceSpeed?.value) || 0) * 2.237).toFixed(1)} mph.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Standing Waves & Nodes Calculator
+const StandingWavesCalculator = () => {
+  const [variables, setVariables] = useState({
+    frequency: { value: 400, status: 'given', unit: 'Hz', label: 'Frequency (f)' },
+    nodeCount: { value: 3, status: 'given', unit: '', label: 'Number of Nodes (n)' },
+    stringLength: { value: '', status: 'unknown', unit: 'm', label: 'String Length (L)' },
+    waveSpeed: { value: '', status: 'unknown', unit: 'm/s', label: 'Wave Speed (v)' },
+    wavelength: { value: '', status: 'unknown', unit: 'm', label: 'Wavelength (λ)' },
+    harmonicNumber: { value: '', status: 'unknown', unit: '', label: 'Harmonic Number (m)' },
+    antinodeCount: { value: '', status: 'unknown', unit: '', label: 'Number of Antinodes' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'frequency') unitType = 'frequency';
+        else if (key === 'stringLength' || key === 'wavelength') unitType = 'length';
+        else if (key === 'waveSpeed') unitType = 'speed';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      let frequency_Hz, nodeCount, stringLength_m, waveSpeed_ms, wavelength_m, harmonicNumber;
+
+      if (variables.frequency.status === 'given' && variables.frequency.value) {
+        frequency_Hz = convertUnit(variables.frequency.value, variables.frequency.unit, 'Hz', 'frequency');
+      }
+      if (variables.nodeCount.status === 'given' && variables.nodeCount.value) {
+        nodeCount = parseInt(variables.nodeCount.value);
+      }
+      if (variables.stringLength.status === 'given' && variables.stringLength.value) {
+        stringLength_m = convertUnit(variables.stringLength.value, variables.stringLength.unit, 'm', 'length');
+      }
+      if (variables.waveSpeed.status === 'given' && variables.waveSpeed.value) {
+        waveSpeed_ms = convertUnit(variables.waveSpeed.value, variables.waveSpeed.unit, 'm/s', 'speed');
+      }
+      if (variables.wavelength.status === 'given' && variables.wavelength.value) {
+        wavelength_m = convertUnit(variables.wavelength.value, variables.wavelength.unit, 'm', 'length');
+      }
+      if (variables.harmonicNumber.status === 'given' && variables.harmonicNumber.value) {
+        harmonicNumber = parseInt(variables.harmonicNumber.value);
+      }
+
+      // For string fixed at both ends: nodes = harmonic number + 1
+      if (nodeCount && !harmonicNumber) {
+        harmonicNumber = nodeCount - 1;
+      }
+      if (harmonicNumber && !nodeCount) {
+        nodeCount = harmonicNumber + 1;
+      }
+
+      // String length and wavelength relationship: L = mλ/2
+      if (harmonicNumber && wavelength_m && !stringLength_m) {
+        stringLength_m = (harmonicNumber * wavelength_m) / 2;
+      }
+      if (harmonicNumber && stringLength_m && !wavelength_m) {
+        wavelength_m = (2 * stringLength_m) / harmonicNumber;
+      }
+
+      // Wave equation: v = fλ
+      if (frequency_Hz && wavelength_m && !waveSpeed_ms) {
+        waveSpeed_ms = frequency_Hz * wavelength_m;
+      }
+      if (frequency_Hz && waveSpeed_ms && !wavelength_m) {
+        wavelength_m = waveSpeed_ms / frequency_Hz;
+      }
+      if (wavelength_m && waveSpeed_ms && !frequency_Hz) {
+        frequency_Hz = waveSpeed_ms / wavelength_m;
+      }
+
+      // Antinodes = nodes - 1 for strings fixed at both ends
+      const antinodeCount = nodeCount ? nodeCount - 1 : null;
+
+      // Update results
+      if (variables.harmonicNumber.status === 'unknown' && harmonicNumber) {
+        newResults.harmonicNumber = { ...variables.harmonicNumber, value: harmonicNumber.toString() };
+      }
+      if (variables.nodeCount.status === 'unknown' && nodeCount) {
+        newResults.nodeCount = { ...variables.nodeCount, value: nodeCount.toString() };
+      }
+      if (variables.antinodeCount.status === 'unknown' && antinodeCount) {
+        newResults.antinodeCount = { ...variables.antinodeCount, value: antinodeCount.toString() };
+      }
+      if (variables.stringLength.status === 'unknown' && stringLength_m) {
+        const length_display = convertUnit(stringLength_m, 'm', variables.stringLength.unit, 'length');
+        newResults.stringLength = { ...variables.stringLength, value: length_display.toFixed(3) };
+      }
+      if (variables.wavelength.status === 'unknown' && wavelength_m) {
+        const wavelength_display = convertUnit(wavelength_m, 'm', variables.wavelength.unit, 'length');
+        newResults.wavelength = { ...variables.wavelength, value: wavelength_display.toFixed(3) };
+      }
+      if (variables.waveSpeed.status === 'unknown' && waveSpeed_ms) {
+        const speed_display = convertUnit(waveSpeed_ms, 'm/s', variables.waveSpeed.unit, 'speed');
+        newResults.waveSpeed = { ...variables.waveSpeed, value: speed_display.toFixed(2) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-pink-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Standing Waves & Nodes:</h2>
+        <p className="text-sm">
+          Calculate standing wave properties from node patterns:
+          <br />• Fixed-end string: Nodes = Harmonic number + 1
+          <br />• String length: L = mλ/2 (m = harmonic number)
+          <br />• Wave equation: v = fλ
+          <br />• Antinodes = Nodes - 1
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Standing Waves
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Harmonic Number:</strong> m = {results.harmonicNumber?.value || (parseInt(variables.nodeCount.value) - 1)}</p>
+            <p><strong>Nodes:</strong> {results.nodeCount?.value || variables.nodeCount.value}</p>
+            <p><strong>Antinodes:</strong> {results.antinodeCount?.value || (parseInt(variables.nodeCount.value) - 1)}</p>
+            <p><strong>Wavelength:</strong> λ = {results.wavelength?.value} {variables.wavelength.unit}</p>
+            <p><strong>Wave Speed:</strong> v = fλ = {variables.frequency.value} × {results.wavelength?.value} = {results.waveSpeed?.value} {variables.waveSpeed.unit}</p>
+            <p className="mt-3 font-semibold text-pink-900 text-lg">
+              〜 <strong>Wave Speed: {results.waveSpeed?.value} {variables.waveSpeed.unit}</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              This is the speed of traveling waves that create the standing wave pattern.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Beat Frequency Calculator
+const BeatFrequencyCalculator = () => {
+  const [variables, setVariables] = useState({
+    period1: { value: 1.60, status: 'given', unit: 'ms', label: 'Period 1 (T₁)' },
+    period2: { value: 1.54, status: 'given', unit: 'ms', label: 'Period 2 (T₂)' },
+    frequency1: { value: '', status: 'unknown', unit: 'Hz', label: 'Frequency 1 (f₁)' },
+    frequency2: { value: '', status: 'unknown', unit: 'Hz', label: 'Frequency 2 (f₂)' },
+    beatFrequency: { value: '', status: 'unknown', unit: 'Hz', label: 'Beat Frequency (f_beat)' },
+    beatPeriod: { value: '', status: 'unknown', unit: 's', label: 'Beat Period (T_beat)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key.includes('frequency') || key.includes('beatFrequency')) unitType = 'frequency';
+        else if (key.includes('period') || key.includes('Period')) unitType = 'time';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      let period1_s, period2_s, frequency1_Hz, frequency2_Hz, beatFrequency_Hz, beatPeriod_s;
+
+      // Convert periods to seconds and calculate frequencies
+      if (variables.period1.status === 'given' && variables.period1.value) {
+        period1_s = convertUnit(variables.period1.value, variables.period1.unit, 's', 'time');
+        frequency1_Hz = 1 / period1_s;
+      }
+      if (variables.period2.status === 'given' && variables.period2.value) {
+        period2_s = convertUnit(variables.period2.value, variables.period2.unit, 's', 'time');
+        frequency2_Hz = 1 / period2_s;
+      }
+
+      // Convert frequencies if given directly
+      if (variables.frequency1.status === 'given' && variables.frequency1.value) {
+        frequency1_Hz = convertUnit(variables.frequency1.value, variables.frequency1.unit, 'Hz', 'frequency');
+        period1_s = 1 / frequency1_Hz;
+      }
+      if (variables.frequency2.status === 'given' && variables.frequency2.value) {
+        frequency2_Hz = convertUnit(variables.frequency2.value, variables.frequency2.unit, 'Hz', 'frequency');
+        period2_s = 1 / frequency2_Hz;
+      }
+
+      // Beat frequency calculation: f_beat = |f₁ - f₂|
+      if (frequency1_Hz && frequency2_Hz) {
+        beatFrequency_Hz = Math.abs(frequency1_Hz - frequency2_Hz);
+        beatPeriod_s = 1 / beatFrequency_Hz;
+      }
+
+      // Update results
+      if (variables.frequency1.status === 'unknown' && frequency1_Hz) {
+        const freq_display = convertUnit(frequency1_Hz, 'Hz', variables.frequency1.unit, 'frequency');
+        newResults.frequency1 = { ...variables.frequency1, value: freq_display.toFixed(2) };
+      }
+      if (variables.frequency2.status === 'unknown' && frequency2_Hz) {
+        const freq_display = convertUnit(frequency2_Hz, 'Hz', variables.frequency2.unit, 'frequency');
+        newResults.frequency2 = { ...variables.frequency2, value: freq_display.toFixed(2) };
+      }
+      if (variables.beatFrequency.status === 'unknown' && beatFrequency_Hz) {
+        const beatFreq_display = convertUnit(beatFrequency_Hz, 'Hz', variables.beatFrequency.unit, 'frequency');
+        newResults.beatFrequency = { ...variables.beatFrequency, value: beatFreq_display.toFixed(3) };
+      }
+      if (variables.beatPeriod.status === 'unknown' && beatPeriod_s) {
+        const beatPeriod_display = convertUnit(beatPeriod_s, 's', variables.beatPeriod.unit, 'time');
+        newResults.beatPeriod = { ...variables.beatPeriod, value: beatPeriod_display.toFixed(4) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-teal-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Beat Frequency:</h2>
+        <p className="text-sm">
+          Calculate beat patterns from two interfering waves:
+          <br />• Beat frequency: f_beat = |f₁ - f₂|
+          <br />• Frequency: f = 1/T
+          <br />• Beat period: T_beat = 1/f_beat
+          <br />• Beats occur when two similar frequencies interfere
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Beat Frequency
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Frequency 1:</strong> f₁ = 1/T₁ = 1/{variables.period1.value} {variables.period1.unit} = {results.frequency1?.value} {variables.frequency1.unit}</p>
+            <p><strong>Frequency 2:</strong> f₂ = 1/T₂ = 1/{variables.period2.value} {variables.period2.unit} = {results.frequency2?.value} {variables.frequency2.unit}</p>
+            <p><strong>Beat Frequency:</strong> f_beat = |f₁ - f₂| = {results.beatFrequency?.value} {variables.beatFrequency.unit}</p>
+            <p><strong>Beat Period:</strong> T_beat = 1/f_beat = {results.beatPeriod?.value} {variables.beatPeriod.unit}</p>
+            <p className="mt-3 font-semibold text-teal-900 text-lg">
+              ♫ <strong>Beat Period: {results.beatPeriod?.value} {variables.beatPeriod.unit}</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              You'll hear {parseFloat(results.beatFrequency?.value).toFixed(1)} beats per second when these waves interfere.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Single-Slit Diffraction Calculator
+// Multiple Sound Sources Calculator
+const MultipleSoundSourcesCalculator = () => {
+  const [variables, setVariables] = useState({
+    singleSourceLevel: { value: 70, status: 'given', unit: 'dB', label: 'Single Source Level (L₁)' },
+    numberOfSources: { value: 106, status: 'given', unit: '', label: 'Number of Sources (N)' },
+    totalLevel: { value: '', status: 'unknown', unit: 'dB', label: 'Total Sound Level (L_total)' },
+    singleIntensity: { value: '', status: 'unknown', unit: 'W/m²', label: 'Single Source Intensity (I₁)' },
+    totalIntensity: { value: '', status: 'unknown', unit: 'W/m²', label: 'Total Intensity (I_total)' },
+    thresholdHearing: { value: 1.0e-12, status: 'given', unit: 'W/m²', label: 'Threshold of Hearing (I₀)' },
+    intensityIncrease: { value: '', status: 'unknown', unit: 'dB', label: 'Level Increase (ΔL)' },
+    distance: { value: '', status: 'unknown', unit: 'm', label: 'Distance (r)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'distance') unitType = 'length';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      let singleSourceLevel_dB, numberOfSources, totalLevel_dB, singleIntensity, totalIntensity, thresholdHearing;
+
+      if (variables.singleSourceLevel.status === 'given' && variables.singleSourceLevel.value) {
+        singleSourceLevel_dB = parseFloat(variables.singleSourceLevel.value);
+      }
+      if (variables.numberOfSources.status === 'given' && variables.numberOfSources.value) {
+        numberOfSources = parseInt(variables.numberOfSources.value);
+      }
+      if (variables.totalLevel.status === 'given' && variables.totalLevel.value) {
+        totalLevel_dB = parseFloat(variables.totalLevel.value);
+      }
+      if (variables.thresholdHearing.status === 'given' && variables.thresholdHearing.value) {
+        thresholdHearing = parseFloat(variables.thresholdHearing.value);
+      }
+
+      // Calculate intensities from decibel levels
+      if (singleSourceLevel_dB && thresholdHearing) {
+        singleIntensity = thresholdHearing * Math.pow(10, singleSourceLevel_dB / 10);
+      }
+      if (totalLevel_dB && thresholdHearing) {
+        totalIntensity = thresholdHearing * Math.pow(10, totalLevel_dB / 10);
+      }
+
+      // Multiple identical sources: I_total = N × I_single
+      if (singleIntensity && numberOfSources && !totalIntensity) {
+        totalIntensity = numberOfSources * singleIntensity;
+      }
+      if (totalIntensity && numberOfSources && !singleIntensity) {
+        singleIntensity = totalIntensity / numberOfSources;
+      }
+      if (singleIntensity && totalIntensity && !numberOfSources) {
+        numberOfSources = Math.round(totalIntensity / singleIntensity);
+      }
+
+      // Convert intensities back to decibel levels
+      if (totalIntensity && thresholdHearing && !totalLevel_dB) {
+        totalLevel_dB = 10 * Math.log10(totalIntensity / thresholdHearing);
+      }
+      if (singleIntensity && thresholdHearing && !singleSourceLevel_dB) {
+        singleSourceLevel_dB = 10 * Math.log10(singleIntensity / thresholdHearing);
+      }
+
+      // Level increase calculation
+      let intensityIncrease_dB;
+      if (singleSourceLevel_dB && totalLevel_dB) {
+        intensityIncrease_dB = totalLevel_dB - singleSourceLevel_dB;
+      }
+      if (numberOfSources && !intensityIncrease_dB) {
+        intensityIncrease_dB = 10 * Math.log10(numberOfSources);
+      }
+
+      // Alternative: Direct calculation L_total = L_single + 10*log₁₀(N)
+      if (singleSourceLevel_dB && numberOfSources && !totalLevel_dB) {
+        totalLevel_dB = singleSourceLevel_dB + 10 * Math.log10(numberOfSources);
+        intensityIncrease_dB = 10 * Math.log10(numberOfSources);
+      }
+
+      // Update results
+      if (variables.totalLevel.status === 'unknown' && totalLevel_dB) {
+        newResults.totalLevel = { ...variables.totalLevel, value: totalLevel_dB.toFixed(1) };
+      }
+      if (variables.singleSourceLevel.status === 'unknown' && singleSourceLevel_dB) {
+        newResults.singleSourceLevel = { ...variables.singleSourceLevel, value: singleSourceLevel_dB.toFixed(1) };
+      }
+      if (variables.numberOfSources.status === 'unknown' && numberOfSources) {
+        newResults.numberOfSources = { ...variables.numberOfSources, value: numberOfSources.toString() };
+      }
+      if (variables.singleIntensity.status === 'unknown' && singleIntensity) {
+        newResults.singleIntensity = { ...variables.singleIntensity, value: singleIntensity.toExponential(3) };
+      }
+      if (variables.totalIntensity.status === 'unknown' && totalIntensity) {
+        newResults.totalIntensity = { ...variables.totalIntensity, value: totalIntensity.toExponential(3) };
+      }
+      if (variables.intensityIncrease.status === 'unknown' && intensityIncrease_dB) {
+        newResults.intensityIncrease = { ...variables.intensityIncrease, value: intensityIncrease_dB.toFixed(1) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-amber-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Multiple Sound Sources:</h2>
+        <p className="text-sm">
+          Calculate combined sound levels from multiple identical sources:
+          <br />• Total level: L_total = L_single + 10 log₁₀(N)
+          <br />• Total intensity: I_total = N × I_single
+          <br />• Level increase: ΔL = 10 log₁₀(N)
+          <br />• Doubling sources adds ~3 dB, 10× sources adds 10 dB
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Multiple Sources
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Number of Sources:</strong> N = {results.numberOfSources?.value || variables.numberOfSources.value}</p>
+            <p><strong>Single Source Level:</strong> L₁ = {results.singleSourceLevel?.value || variables.singleSourceLevel.value} dB</p>
+            <p><strong>Level Increase:</strong> ΔL = 10 log₁₀(N) = 10 log₁₀({results.numberOfSources?.value || variables.numberOfSources.value}) = {results.intensityIncrease?.value} dB</p>
+            <p><strong>Total Sound Level:</strong> L_total = L₁ + ΔL = {results.singleSourceLevel?.value || variables.singleSourceLevel.value} + {results.intensityIncrease?.value} = {results.totalLevel?.value} dB</p>
+            <p><strong>Intensity Multiplication:</strong> I_total = {results.numberOfSources?.value || variables.numberOfSources.value} × I₁</p>
+            <p className="mt-3 font-semibold text-amber-900 text-lg">
+              🎺 <strong>Total Sound Level: {results.totalLevel?.value} dB</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              {parseInt(results.numberOfSources?.value || variables.numberOfSources.value) === 106 ? 
+                'That\'s like being near a motorcycle or power saw!' : 
+                `That's a ${results.intensityIncrease?.value} dB increase from the single source.`}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SingleSlitCalculator = () => {
+  const [variables, setVariables] = useState({
+    slitWidth: { value: 0.010, status: 'given', unit: 'mm', label: 'Slit Width (a)' },
+    frequency: { value: 5.0e14, status: 'given', unit: 'Hz', label: 'Light Frequency (f)' },
+    wavelength: { value: '', status: 'unknown', unit: 'nm', label: 'Wavelength (λ)' },
+    screenDistance: { value: 60, status: 'given', unit: 'cm', label: 'Screen Distance (D)' },
+    centralMaxWidth: { value: '', status: 'unknown', unit: 'mm', label: 'Central Maximum Width' },
+    firstMinimumAngle: { value: '', status: 'unknown', unit: '°', label: 'First Minimum Angle' },
+    lightSpeed: { value: 3.0e8, status: 'given', unit: 'm/s', label: 'Speed of Light (c)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key.includes('Width') || key.includes('Distance') || key === 'wavelength') unitType = 'length';
+        else if (key === 'frequency') unitType = 'frequency';
+        else if (key === 'lightSpeed') unitType = 'speed';
+        else if (key.includes('Angle')) unitType = 'angle';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      // Convert to standard units
+      const lightSpeed_ms = convertUnit(variables.lightSpeed.value, variables.lightSpeed.unit, 'm/s', 'speed');
+      const slitWidth_m = convertUnit(variables.slitWidth.value, variables.slitWidth.unit, 'm', 'length');
+      const screenDistance_m = convertUnit(variables.screenDistance.value, variables.screenDistance.unit, 'm', 'length');
+      
+      let frequency_Hz, wavelength_m;
+
+      if (variables.frequency.status === 'given' && variables.frequency.value) {
+        frequency_Hz = convertUnit(variables.frequency.value, variables.frequency.unit, 'Hz', 'frequency');
+        wavelength_m = lightSpeed_ms / frequency_Hz;
+      }
+      if (variables.wavelength.status === 'given' && variables.wavelength.value) {
+        wavelength_m = convertUnit(variables.wavelength.value, variables.wavelength.unit, 'm', 'length');
+        frequency_Hz = lightSpeed_ms / wavelength_m;
+      }
+
+      // Single-slit diffraction: first minimum at sin(θ) = λ/a
+      if (wavelength_m && slitWidth_m) {
+        const sinTheta = wavelength_m / slitWidth_m;
+        const firstMinAngle_rad = Math.asin(sinTheta);
+        const firstMinAngle_deg = firstMinAngle_rad * 180 / Math.PI;
+        
+        // Central maximum width: w = 2λD/a
+        const centralMaxWidth_m = (2 * wavelength_m * screenDistance_m) / slitWidth_m;
+
+        if (variables.wavelength.status === 'unknown') {
+          const wavelength_display = convertUnit(wavelength_m, 'm', variables.wavelength.unit, 'length');
+          newResults.wavelength = { ...variables.wavelength, value: wavelength_display.toFixed(1) };
+        }
+        if (variables.firstMinimumAngle.status === 'unknown') {
+          newResults.firstMinimumAngle = { ...variables.firstMinimumAngle, value: firstMinAngle_deg.toFixed(2) };
+        }
+        if (variables.centralMaxWidth.status === 'unknown') {
+          const width_display = convertUnit(centralMaxWidth_m, 'm', variables.centralMaxWidth.unit, 'length');
+          newResults.centralMaxWidth = { ...variables.centralMaxWidth, value: width_display.toFixed(2) };
+        }
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-violet-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Single-Slit Diffraction:</h2>
+        <p className="text-sm">
+          Calculate diffraction patterns from single slits:
+          <br />• First minimum: sin(θ) = λ/a
+          <br />• Central maximum width: w = 2λD/a
+          <br />• Wave relation: c = fλ
+          <br />• Smaller slits create wider diffraction patterns
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Single-Slit Diffraction
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Wavelength:</strong> λ = c/f = {(parseFloat(variables.lightSpeed.value)).toExponential(2)} / {(parseFloat(variables.frequency.value)).toExponential(2)} = {results.wavelength?.value} {variables.wavelength.unit}</p>
+            <p><strong>First Minimum Angle:</strong> θ = sin⁻¹(λ/a) = {results.firstMinimumAngle?.value}°</p>
+            <p><strong>Central Maximum Width:</strong> w = 2λD/a = {results.centralMaxWidth?.value} {variables.centralMaxWidth.unit}</p>
+            <p className="mt-3 font-semibold text-violet-900 text-lg">
+              📐 <strong>Central Maximum Width: {results.centralMaxWidth?.value} {variables.centralMaxWidth.unit}</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              This is the width of the bright central region on the screen.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const LensCalculator = () => {
+  const [variables, setVariables] = useState({
+    focalLength: { value: 20, status: 'given', unit: 'cm', label: 'Focal Length (f)' },
+    objectDistance: { value: '', status: 'unknown', unit: 'cm', label: 'Object Distance (do)' },
+    imageDistance: { value: '', status: 'unknown', unit: 'cm', label: 'Image Distance (di)' },
+    magnification: { value: 4, status: 'given', unit: '', label: 'Magnification (M)' },
+    objectHeight: { value: '', status: 'unknown', unit: 'cm', label: 'Object Height (ho)' },
+    imageHeight: { value: '', status: 'unknown', unit: 'cm', label: 'Image Height (hi)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit && key !== 'magnification') {
+        let unitType = 'length';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      let focalLength, objectDistance, imageDistance, magnification, objectHeight, imageHeight;
+
+      if (variables.focalLength.status === 'given' && variables.focalLength.value) {
+        focalLength = parseFloat(variables.focalLength.value);
+      }
+      if (variables.objectDistance.status === 'given' && variables.objectDistance.value) {
+        objectDistance = parseFloat(variables.objectDistance.value);
+      }
+      if (variables.imageDistance.status === 'given' && variables.imageDistance.value) {
+        imageDistance = parseFloat(variables.imageDistance.value);
+      }
+      if (variables.magnification.status === 'given' && variables.magnification.value) {
+        magnification = parseFloat(variables.magnification.value);
+      }
+      if (variables.objectHeight.status === 'given' && variables.objectHeight.value) {
+        objectHeight = parseFloat(variables.objectHeight.value);
+      }
+      if (variables.imageHeight.status === 'given' && variables.imageHeight.value) {
+        imageHeight = parseFloat(variables.imageHeight.value);
+      }
+
+      // Magnification relationship: M = -di/do
+      // For "four times actual size" we use M = -4 (negative for real image)
+      if (magnification && magnification > 0) {
+        magnification = -magnification; // Convert to negative for real image
+      }
+
+      if (magnification && objectDistance && !imageDistance) {
+        imageDistance = -magnification * objectDistance;
+      }
+      if (magnification && imageDistance && !objectDistance) {
+        objectDistance = -imageDistance / magnification;
+      }
+      if (objectDistance && imageDistance && !magnification) {
+        magnification = -imageDistance / objectDistance;
+      }
+
+      // Lens equation: 1/f = 1/do + 1/di
+      if (focalLength && objectDistance && !imageDistance) {
+        imageDistance = 1 / (1/focalLength - 1/objectDistance);
+      }
+      if (focalLength && imageDistance && !objectDistance) {
+        objectDistance = 1 / (1/focalLength - 1/imageDistance);
+      }
+      if (objectDistance && imageDistance && !focalLength) {
+        focalLength = 1 / (1/objectDistance + 1/imageDistance);
+      }
+
+      // For magnification problems, use M = -di/do combined with lens equation
+      if (focalLength && magnification && !objectDistance && !imageDistance) {
+        // From M = -di/do and 1/f = 1/do + 1/di
+        // Substitute di = -M*do into lens equation
+        // 1/f = 1/do + 1/(-M*do) = 1/do - 1/(M*do) = (M-1)/(M*do)
+        // Therefore: do = (M-1)*f/M
+        objectDistance = (Math.abs(magnification) - 1) * focalLength / Math.abs(magnification);
+        imageDistance = -magnification * objectDistance;
+      }
+
+      // Height relationship
+      if (magnification && objectHeight && !imageHeight) {
+        imageHeight = magnification * objectHeight;
+      }
+      if (magnification && imageHeight && !objectHeight) {
+        objectHeight = imageHeight / magnification;
+      }
+
+      // Update results
+      if (variables.objectDistance.status === 'unknown' && objectDistance) {
+        newResults.objectDistance = { ...variables.objectDistance, value: objectDistance.toFixed(2) };
+      }
+      if (variables.imageDistance.status === 'unknown' && imageDistance) {
+        newResults.imageDistance = { ...variables.imageDistance, value: imageDistance.toFixed(2) };
+      }
+      if (variables.magnification.status === 'unknown' && magnification) {
+        newResults.magnification = { ...variables.magnification, value: magnification.toFixed(3) };
+      }
+      if (variables.focalLength.status === 'unknown' && focalLength) {
+        newResults.focalLength = { ...variables.focalLength, value: focalLength.toFixed(2) };
+      }
+      if (variables.objectHeight.status === 'unknown' && objectHeight) {
+        newResults.objectHeight = { ...variables.objectHeight, value: objectHeight.toFixed(2) };
+      }
+      if (variables.imageHeight.status === 'unknown' && imageHeight) {
+        newResults.imageHeight = { ...variables.imageHeight, value: imageHeight.toFixed(2) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-green-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Lens Optics & Magnification:</h2>
+        <p className="text-sm">
+          Calculate object and image properties for thin lenses:
+          <br />• Lens equation: 1/f = 1/do + 1/di
+          <br />• Magnification: M = -di/do = hi/ho
+          <br />• For real images: M is negative, di is positive
+          <br />• Sign conventions: Converging lens f&gt;0, Real image di&gt;0
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Lens Optics
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Object Distance:</strong> do = {results.objectDistance?.value} cm</p>
+            <p><strong>Image Distance:</strong> di = {results.imageDistance?.value} cm</p>
+            <p><strong>Magnification:</strong> M = -di/do = {results.magnification?.value || (-parseFloat(variables.magnification.value)).toFixed(3)}</p>
+            <p><strong>Lens Equation Check:</strong> 1/{variables.focalLength.value} = 1/{results.objectDistance?.value} + 1/{results.imageDistance?.value}</p>
+            <p className="mt-3 font-semibold text-green-900 text-lg">
+              🔍 <strong>Object Distance: {results.objectDistance?.value} cm</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              Image is {parseFloat(results.imageDistance?.value) > 0 ? 'real' : 'virtual'} and {Math.abs(parseFloat(variables.magnification.value)) > 1 ? 'magnified' : 'reduced'} by {Math.abs(parseFloat(variables.magnification.value))}×.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AcousticsCalculator = () => {
+  const [variables, setVariables] = useState({
+    power: { value: 33.0, status: 'given', unit: 'W', label: 'Acoustical Power (P)' },
+    distance: { value: 30.0, status: 'given', unit: 'm', label: 'Distance from Source (r)' },
+    intensity: { value: '', status: 'unknown', unit: 'W/m²', label: 'Sound Intensity (I)' },
+    intensityLevel: { value: '', status: 'unknown', unit: 'dB', label: 'Sound Intensity Level (β)' },
+    thresholdHearing: { value: 1.0e-12, status: 'given', unit: 'W/m²', label: 'Threshold of Hearing (I₀)' },
+    frequency: { value: '', status: 'unknown', unit: 'Hz', label: 'Frequency (f)' },
+    wavelength: { value: '', status: 'unknown', unit: 'm', label: 'Wavelength (λ)' },
+    speedSound: { value: 343, status: 'given', unit: 'm/s', label: 'Speed of Sound (v)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'distance' || key === 'wavelength') unitType = 'length';
+        else if (key === 'frequency') unitType = 'frequency';
+        else if (key === 'speedSound') unitType = 'speed';
+        else if (key === 'power') unitType = 'power';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      // Convert to standard units
+      let power_W, distance_m, intensity_Wm2, thresholdHearing_Wm2, speedSound_ms, frequency_Hz, wavelength_m;
+
+      if (variables.power.status === 'given' && variables.power.value) {
+        power_W = convertUnit(variables.power.value, variables.power.unit, 'W', 'power') || parseFloat(variables.power.value);
+      }
+      if (variables.distance.status === 'given' && variables.distance.value) {
+        distance_m = convertUnit(variables.distance.value, variables.distance.unit, 'm', 'length');
+      }
+      if (variables.intensity.status === 'given' && variables.intensity.value) {
+        intensity_Wm2 = parseFloat(variables.intensity.value);
+      }
+      if (variables.thresholdHearing.status === 'given' && variables.thresholdHearing.value) {
+        thresholdHearing_Wm2 = parseFloat(variables.thresholdHearing.value);
+      }
+      if (variables.speedSound.status === 'given' && variables.speedSound.value) {
+        speedSound_ms = convertUnit(variables.speedSound.value, variables.speedSound.unit, 'm/s', 'speed');
+      }
+      if (variables.frequency.status === 'given' && variables.frequency.value) {
+        frequency_Hz = convertUnit(variables.frequency.value, variables.frequency.unit, 'Hz', 'frequency');
+      }
+      if (variables.wavelength.status === 'given' && variables.wavelength.value) {
+        wavelength_m = convertUnit(variables.wavelength.value, variables.wavelength.unit, 'm', 'length');
+      }
+
+      // Calculate intensity from power and distance
+      if (power_W && distance_m && !intensity_Wm2) {
+        intensity_Wm2 = power_W / (4 * Math.PI * distance_m * distance_m);
+      }
+      
+      // Calculate distance from power and intensity
+      if (power_W && intensity_Wm2 && !distance_m) {
+        distance_m = Math.sqrt(power_W / (4 * Math.PI * intensity_Wm2));
+      }
+      
+      // Calculate power from intensity and distance
+      if (intensity_Wm2 && distance_m && !power_W) {
+        power_W = intensity_Wm2 * 4 * Math.PI * distance_m * distance_m;
+      }
+
+      // Calculate sound intensity level (decibels)
+      let intensityLevel_dB;
+      if (intensity_Wm2 && thresholdHearing_Wm2) {
+        intensityLevel_dB = 10 * Math.log10(intensity_Wm2 / thresholdHearing_Wm2);
+      }
+
+      // Wave relationship: v = fλ
+      if (speedSound_ms && frequency_Hz && !wavelength_m) {
+        wavelength_m = speedSound_ms / frequency_Hz;
+      }
+      else if (speedSound_ms && wavelength_m && !frequency_Hz) {
+        frequency_Hz = speedSound_ms / wavelength_m;
+      }
+      else if (frequency_Hz && wavelength_m && !speedSound_ms) {
+        speedSound_ms = frequency_Hz * wavelength_m;
+      }
+
+      // Update results with converted values
+      if (variables.intensity.status === 'unknown' && intensity_Wm2) {
+        newResults.intensity = { ...variables.intensity, value: intensity_Wm2.toExponential(3) };
+      }
+      
+      if (variables.intensityLevel.status === 'unknown' && intensityLevel_dB !== undefined) {
+        newResults.intensityLevel = { ...variables.intensityLevel, value: intensityLevel_dB.toFixed(1) };
+      }
+      
+      if (variables.distance.status === 'unknown' && distance_m) {
+        const distance_display = convertUnit(distance_m, 'm', variables.distance.unit, 'length');
+        newResults.distance = { ...variables.distance, value: distance_display.toFixed(2) };
+      }
+      
+      if (variables.power.status === 'unknown' && power_W) {
+        const power_display = convertUnit(power_W, 'W', variables.power.unit, 'power') || power_W;
+        newResults.power = { ...variables.power, value: power_display.toFixed(2) };
+      }
+      
+      if (variables.frequency.status === 'unknown' && frequency_Hz) {
+        const frequency_display = convertUnit(frequency_Hz, 'Hz', variables.frequency.unit, 'frequency');
+        newResults.frequency = { ...variables.frequency, value: frequency_display.toFixed(2) };
+      }
+      
+      if (variables.wavelength.status === 'unknown' && wavelength_m) {
+        const wavelength_display = convertUnit(wavelength_m, 'm', variables.wavelength.unit, 'length');
+        newResults.wavelength = { ...variables.wavelength, value: wavelength_display.toFixed(3) };
+      }
+      
+      if (variables.speedSound.status === 'unknown' && speedSound_ms) {
+        const speed_display = convertUnit(speedSound_ms, 'm/s', variables.speedSound.unit, 'speed');
+        newResults.speedSound = { ...variables.speedSound, value: speed_display.toFixed(2) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-yellow-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Acoustics and Sound Waves:</h2>
+        <p className="text-sm">
+          Calculate sound intensity, decibel levels, and wave properties:
+          <br />• Point source intensity: I = P/(4πr²)
+          <br />• Sound intensity level: β = 10 log₁₀(I/I₀) [dB]
+          <br />• Wave equation: v = fλ (speed = frequency × wavelength)
+          <br />• Standard threshold of hearing: I₀ = 1.0 × 10⁻¹² W/m²
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Acoustics
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            {results.intensity && (
+              <p><strong>Sound Intensity:</strong> I = P/(4πr²) = {variables.power.value} W / (4π × {variables.distance.value}² m²) = {results.intensity.value} W/m²</p>
+            )}
+            {results.intensityLevel && (
+              <p><strong>Sound Intensity Level:</strong> β = 10 log₁₀(I/I₀) = {results.intensityLevel.value} dB</p>
+            )}
+            {results.wavelength && (
+              <p><strong>Wavelength:</strong> λ = v/f = {results.wavelength.value} {variables.wavelength.unit}</p>
+            )}
+            {results.frequency && (
+              <p><strong>Frequency:</strong> f = v/λ = {results.frequency.value} {variables.frequency.unit}</p>
+            )}
+            <p className="mt-3 font-semibold text-yellow-900 text-lg">
+              🔊 <strong>Sound Level: {results.intensityLevel?.value} dB</strong>
+            </p>
+            <p className="text-xs text-gray-600 mt-2">
+              For reference: 0 dB = threshold of hearing, 60 dB = normal conversation, 120 dB = pain threshold
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CarnotRefrigeratorCalculator = () => {
+  const [variables, setVariables] = useState({
+    Thot: { value: '', status: 'unknown', unit: 'K', label: 'Hot Reservoir Temperature (T_hot)' },
+    Tcold: { value: '', status: 'unknown', unit: 'K', label: 'Cold Reservoir Temperature (T_cold)' },
+    Qhot: { value: '', status: 'unknown', unit: 'J', label: 'Heat Discharged (Q_hot)' },
+    Qcold: { value: 300, status: 'given', unit: 'J', label: 'Heat Removed (Q_cold)' },
+    Work: { value: 480, status: 'given', unit: 'J', label: 'Work Input (W)' },
+    COP: { value: '', status: 'unknown', unit: '', label: 'Coefficient of Performance (COP)' }
+  });
+
+  const [results, setResults] = useState({});
+  const [error, setError] = useState('');
+
+  const toggleStatus = (key) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status: prev[key].status === 'given' ? 'unknown' : 'given',
+        value: prev[key].status === 'given' ? '' : prev[key].value
+      }
+    }));
+  };
+
+  const updateValue = (key, value) => {
+    setVariables(prev => ({
+      ...prev,
+      [key]: { ...prev[key], value: value }
+    }));
+  };
+
+  const updateUnit = (key, newUnit) => {
+    setVariables(prev => {
+      const variable = prev[key];
+      if (variable.value && variable.unit !== newUnit) {
+        let unitType = 'default';
+        if (key === 'Thot' || key === 'Tcold') unitType = 'temperature';
+        else if (key === 'Qhot' || key === 'Qcold' || key === 'Work') unitType = 'energy';
+        
+        const convertedValue = convertUnit(variable.value, variable.unit, newUnit, unitType);
+        
+        return {
+          ...prev,
+          [key]: { ...variable, unit: newUnit, value: convertedValue }
+        };
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...variable, unit: newUnit }
+      };
+    });
+  };
+
+  const calculate = () => {
+    try {
+      setError('');
+      const newResults = { ...variables };
+
+      let Qhot_J, Qcold_J, Work_J, COP_value;
+      
+      if (variables.Qhot.status === 'given' && variables.Qhot.value) {
+        Qhot_J = convertUnit(variables.Qhot.value, variables.Qhot.unit, 'J', 'energy');
+      }
+      if (variables.Qcold.status === 'given' && variables.Qcold.value) {
+        Qcold_J = convertUnit(variables.Qcold.value, variables.Qcold.unit, 'J', 'energy');
+      }
+      if (variables.Work.status === 'given' && variables.Work.value) {
+        Work_J = convertUnit(variables.Work.value, variables.Work.unit, 'J', 'energy');
+      }
+
+      if (Work_J !== undefined && Qcold_J !== undefined && Qhot_J === undefined) {
+        Qhot_J = Work_J + Qcold_J;
+      }
+      
+      if (Qcold_J !== undefined && Work_J !== undefined) {
+        COP_value = Qcold_J / Work_J;
+      }
+
+      if (variables.Qhot.status === 'unknown' && Qhot_J !== undefined) {
+        const Qhot_display = convertUnit(Qhot_J, 'J', variables.Qhot.unit, 'energy');
+        newResults.Qhot = { ...variables.Qhot, value: Qhot_display.toFixed(2) };
+      }
+      if (variables.COP.status === 'unknown' && COP_value !== undefined) {
+        newResults.COP = { ...variables.COP, value: COP_value.toFixed(3) };
+      }
+
+      setResults(newResults);
+
+    } catch (err) {
+      setError('Calculation error. Please check your inputs.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-cyan-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Carnot Refrigerator Problem:</h2>
+        <p className="text-sm">
+          Calculate work, heat flows, and efficiency for the most efficient refrigerator:
+          <br />• Energy conservation: Q_hot = W + Q_cold
+          <br />• Coefficient of Performance: COP = Q_cold / W
+          <br />• Work input moves heat from cold to hot reservoir
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(variables).map(([key, variable]) => (
+          <VariableInput
+            key={key}
+            varKey={key}
+            variable={variable}
+            onToggleStatus={toggleStatus}
+            onUpdateValue={updateValue}
+            onUpdateUnit={updateUnit}
+            results={results}
+          />
+        ))}
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={calculate}
+          className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-8 rounded-lg transition-colors"
+        >
+          Calculate Refrigerator
+        </button>
+      </div>
+
+      {Object.keys(results).length > 0 && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-800">Calculation Results:</h3>
+          <div className="text-sm space-y-2 text-green-700">
+            <p><strong>Heat Discharged to Hot:</strong> {results.Qhot?.value} {variables.Qhot.unit}</p>
+            {results.COP && (
+              <p><strong>Coefficient of Performance:</strong> COP = {results.COP.value}</p>
+            )}
+            <p className="mt-3 font-semibold text-cyan-900">
+              ❄️ Higher COP = more efficient refrigerator!
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Thermodynamics Page
+const ThermodynamicsPage = () => {
+  const [activeTab, setActiveTab] = useState('pv-diagram');
+
+  const tabs = [
+    { id: 'pv-diagram', label: 'pV Diagram', icon: '📊' },
+    { id: 'ideal-gas', label: 'Ideal Gas Mass', icon: '⚛️' },
+    { id: 'heat-flow', label: 'Heat Flow Process', icon: '🔥' },
+    { id: 'rms-speed', label: 'RMS Speed', icon: '💨' },
+    { id: 'carnot-engine', label: 'Carnot Engine', icon: '⚙️' },
+    { id: 'carnot-refrigerator', label: 'Carnot Refrigerator', icon: '❄️' }
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Tab Navigation */}
+      <div className="flex justify-center">
+        <div className="flex bg-gray-100 rounded-lg p-1 flex-wrap">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-md font-medium transition-all text-sm ${
+                activeTab === tab.id
+                  ? 'bg-white text-blue-600 shadow-md'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <span className="text-base">{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-lg">
+        {activeTab === 'pv-diagram' && <PVDiagramCalculator />}
+        {activeTab === 'ideal-gas' && <IdealGasMassCalculator />}
+        {activeTab === 'heat-flow' && <HeatFlowCalculator />}
+        {activeTab === 'rms-speed' && <RMSSpeedCalculator />}
+        {activeTab === 'carnot-engine' && <CarnotEngineCalculator />}
+        {activeTab === 'carnot-refrigerator' && <CarnotRefrigeratorCalculator />}
+      </div>
+    </div>
+  );
+};
+
+// Wave and Optics Page
+const WaveOpticsPage = () => {
+  const [activeTab, setActiveTab] = useState('wave-motion');
+
+  const tabs = [
+    { id: 'wave-motion', label: 'String Vibrations', icon: '🎵' },
+    { id: 'acoustics', label: 'Sound & Acoustics', icon: '🔊' },
+    { id: 'multiple-sources', label: 'Multiple Sources', icon: '🎺' },
+    { id: 'doppler', label: 'Doppler Effect', icon: '🚗' },
+    { id: 'standing-waves', label: 'Standing Waves', icon: '〜' },
+    { id: 'beat-frequency', label: 'Beat Frequency', icon: '♫' },
+    { id: 'double-slit', label: 'Double-Slit', icon: '🌈' },
+    { id: 'single-slit', label: 'Single-Slit', icon: '📐' },
+    { id: 'spherical-mirror', label: 'Mirrors', icon: '🪞' },
+    { id: 'lens', label: 'Lenses', icon: '🔍' }
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Tab Navigation */}
+      <div className="flex justify-center">
+        <div className="flex bg-gray-100 rounded-lg p-1 flex-wrap max-w-6xl">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-1 px-3 py-2 rounded-md font-medium transition-all text-xs m-1 ${
+                activeTab === tab.id
+                  ? 'bg-white text-purple-600 shadow-md'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <span className="text-sm">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-lg">
+        {activeTab === 'wave-motion' && <WaveMotionCalculator />}
+        {activeTab === 'acoustics' && <AcousticsCalculator />}
+        {activeTab === 'multiple-sources' && <MultipleSoundSourcesCalculator />}
+        {activeTab === 'doppler' && <DopplerEffectCalculator />}
+        {activeTab === 'standing-waves' && <StandingWavesCalculator />}
+        {activeTab === 'beat-frequency' && <BeatFrequencyCalculator />}
+        {activeTab === 'double-slit' && <DoubleslitCalculator />}
+        {activeTab === 'single-slit' && <SingleSlitCalculator />}
+        {activeTab === 'spherical-mirror' && <SphericalMirrorCalculator />}
+        {activeTab === 'lens' && <LensCalculator />}
+      </div>
+    </div>
+  );
+};
+
+// Main App with Page Navigation
+const PhysicsCalculators = () => {
+  const [activePage, setActivePage] = useState('thermodynamics');
+
+  const pages = [
+    { id: 'thermodynamics', label: 'Thermodynamics', icon: '🔥', color: 'blue' },
+    { id: 'waves', label: 'Wave & Optics', icon: '🌊', color: 'purple' }
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 bg-white min-h-screen">
+      <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
+        Physics Calculator Suite
+      </h1>
+      
+      {/* Page Navigation */}
+      <div className="flex justify-center mb-8">
+        <div className="flex bg-gray-200 rounded-xl p-2 shadow-lg">
+          {pages.map((page) => (
+            <button
+              key={page.id}
+              onClick={() => setActivePage(page.id)}
+              className={`flex items-center space-x-3 px-8 py-4 rounded-lg font-semibold transition-all ${
+                activePage === page.id
+                  ? page.color === 'blue' 
+                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                    : 'bg-purple-600 text-white shadow-md transform scale-105'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <span className="text-2xl">{page.icon}</span>
+              <span className="text-lg">{page.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Page Content */}
+      <div className="bg-white rounded-lg">
+        {activePage === 'thermodynamics' && <ThermodynamicsPage />}
+        {activePage === 'waves' && <WaveOpticsPage />}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-12 text-center text-gray-500 text-sm">
+        <p>Physics Calculator Suite - 16 Comprehensive Calculators</p>
+        <p className="mt-1">🔥 Thermodynamics (6) | 🌊 Wave & Optics (10)</p>
+        <p className="mt-1">✨ Toggle any variable between "Given" and "Unknown" to solve different scenarios</p>
+        <p className="mt-1">🔄 Full bidirectional calculations with automatic unit conversion</p>
+      </div>
+    </div>
+  );
+};
+
+        ReactDOM.render(<PhysicsCalculators />, document.getElementById('root'));
+    </script>
+</body>
+</html>
