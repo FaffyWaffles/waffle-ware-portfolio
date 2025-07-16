@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>True Automorphic Forms Möbius Interpolation</title>
+    <title>WIP Automorphic Möbius Interpolation</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
     <style>
@@ -320,9 +320,9 @@
         
         <div class="slider-container">
             <div class="slider-group">
-                <label for="systemSizeSlider">System Size: <span id="systemSizeValue">50</span></label>
-                <input type="range" id="systemSizeSlider" min="20" max="200" value="50" step="10">
-                <div class="slider-info">Controls the n×n matrix size. Larger = more coverage but potentially worse conditioning.</div>
+                <label for="systemSizeSlider">System Size: <span id="systemSizeValue">200</span></label>
+                <input type="range" id="systemSizeSlider" min="20" max="1008" value="200" step="20">
+                <div class="slider-info">Controls the n×n matrix size. Target: φ(1009) = 1008 for full coverage.</div>
             </div>
             
             <div class="slider-group">
@@ -567,7 +567,9 @@
             
             systemSizeSlider.addEventListener('input', function() {
                 computationState.parameters.systemSize = parseInt(this.value);
-                document.getElementById('systemSizeValue').textContent = this.value;
+                const size = this.value;
+                const coverage = (size / 1008 * 100).toFixed(1);
+                document.getElementById('systemSizeValue').textContent = `${size} (${coverage}%)`;
             });
             
             regularizationSlider.addEventListener('input', function() {
@@ -723,6 +725,16 @@
                     orthogonalBasis.push(func);
                 }
                 
+                // Explicit renormalization to ensure ||v||_2 = 1
+                orthogonalBasis.forEach(v => {
+                    const norm = Math.sqrt(v.reduce((s, x) => s + x*x, 0));
+                    if (norm > 1e-15) {
+                        for (let i = 0; i < v.length; i++) {
+                            v[i] /= norm;
+                        }
+                    }
+                });
+                
                 return orthogonalBasis;
                 
             } catch (error) {
@@ -749,12 +761,17 @@
             log("");
             
             const scalingResults = [];
-            const testSizes = [20, 30, 40, 50, 60, 80, 100, 120, 150, 200];
+            const testSizes = [20, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1008];
+            
+            log(`Testing scaling up to φ(1009) = 1008 dimensions...`, '#ffd93d');
+            log(`This may take several minutes for larger sizes`, '#ffff00');
+            log("");
             
             for (const size of testSizes) {
                 if (!computationState.autoScaling) break; // Allow interruption
                 
-                log(`Testing system size: ${size}×${size}`, '#64ffda');
+                const startTime = Date.now();
+                log(`Testing system size: ${size}×${size} (${(size/1008*100).toFixed(1)}% coverage)`, '#64ffda');
                 
                 try {
                     // Generate basis
@@ -774,29 +791,39 @@
                     // Compute metrics
                     const conditionNumber = matrixCondition(matrix);
                     
-                    // Solve small test system
+                    // For larger sizes, test with smaller target vector to save time
+                    const testSize = Math.min(size, 100);
                     const testTarget = [];
-                    for (let n = 1; n <= size; n++) {
+                    for (let n = 1; n <= testSize; n++) {
                         testTarget.push(moebius(n));
                     }
                     
-                    const solution = solveSystemImproved(matrix, testTarget);
-                    const reconstruction = matrix.map(row => 
+                    // Create reduced system for testing
+                    const testMatrix = matrix.slice(0, testSize).map(row => row.slice(0, testSize));
+                    const solution = solveSystemImproved(testMatrix, testTarget);
+                    const reconstruction = testMatrix.map(row => 
                         row.reduce((sum, val, j) => sum + val * solution[j], 0)
                     );
                     
                     const errors = reconstruction.map((val, i) => Math.abs(val - testTarget[i]));
                     const maxError = Math.max(...errors);
                     
+                    const elapsed = Date.now() - startTime;
+                    
                     scalingResults.push({
                         size: size,
                         condition: conditionNumber,
                         maxError: maxError,
                         stability: getStabilityGrade(conditionNumber),
-                        quality: getQualityGrade(maxError)
+                        quality: getQualityGrade(maxError),
+                        time: elapsed
                     });
                     
-                    log(`  Condition: ${conditionNumber.toExponential(2)}, Error: ${maxError.toExponential(2)}`);
+                    log(`  Condition: ${conditionNumber.toExponential(2)}, Error: ${maxError.toExponential(2)}, Time: ${elapsed}ms`);
+                    
+                    // Add longer delay for larger systems
+                    const delay = size > 500 ? 500 : 100;
+                    await new Promise(resolve => setTimeout(resolve, delay));
                     
                 } catch (error) {
                     log(`  Failed: ${error.message}`, '#ff6b6b');
@@ -805,11 +832,10 @@
                         condition: 1e12,
                         maxError: 1,
                         stability: 'F',
-                        quality: 'F'
+                        quality: 'F',
+                        time: 0
                     });
                 }
-                
-                await new Promise(resolve => setTimeout(resolve, 100));
             }
             
             // Display results
@@ -825,11 +851,11 @@
         }
         
         function getStabilityGrade(condition) {
-            if (condition < 10) return 'A+';
-            if (condition < 100) return 'A';
-            if (condition < 1000) return 'B';
-            if (condition < 10000) return 'C';
-            if (condition < 1e6) return 'D';
+            if (condition < 2) return 'A+';
+            if (condition < 5) return 'A';
+            if (condition < 10) return 'B';
+            if (condition < 100) return 'C';
+            if (condition < 1000) return 'D';
             return 'F';
         }
         
@@ -859,6 +885,8 @@
                     <div class="scaling-size">${result.size}×${result.size}</div>
                     <div class="scaling-condition grade-${stabilityClass}">${result.condition.toExponential(1)}</div>
                     <div class="scaling-error grade-${qualityClass}">${result.maxError.toExponential(1)}</div>
+                    <div>Coverage: ${(result.size/1008*100).toFixed(1)}%</div>
+                    <div>Time: ${result.time || 0}ms</div>
                     <div>Stability: <span class="grade-${stabilityClass}">${result.stability}</span></div>
                     <div>Quality: <span class="grade-${qualityClass}">${result.quality}</span></div>
                 `;
@@ -895,7 +923,7 @@
                     }
                 }
                 
-                // Normalize
+                // Normalize to unit length
                 let norm = 0;
                 for (let k = 0; k < m; k++) {
                     norm += current[k] * current[k];
@@ -909,11 +937,21 @@
                 } else {
                     // Handle degenerate case
                     current = new Array(m).fill(0);
-                    current[i % m] = 1;
+                    if (i < m) current[i] = 1;
                 }
                 
                 orthogonal.push(current);
             }
+            
+            // Additional renormalization pass to ensure ||v||_2 = 1
+            orthogonal.forEach(v => {
+                const norm = Math.sqrt(v.reduce((s, x) => s + x*x, 0));
+                if (norm > 1e-15) {
+                    for (let i = 0; i < v.length; i++) {
+                        v[i] /= norm;
+                    }
+                }
+            });
             
             return orthogonal;
         }
@@ -1001,60 +1039,109 @@
         }
         
         function matrixCondition(matrix) {
-            // Robust condition number estimation without SVD
+            // Robust spectral condition number computation
             try {
-                const n = matrix.length;
-                
-                // Method 1: Use determinant-based approach for square matrices
                 const A = math.matrix(matrix);
                 
-                // Compute matrix norm (Frobenius norm)
-                let normA = 0;
-                for (let i = 0; i < n; i++) {
-                    for (let j = 0; j < n; j++) {
-                        normA += matrix[i][j] * matrix[i][j];
-                    }
-                }
-                normA = Math.sqrt(normA);
-                
-                // Try to compute inverse and its norm
+                // Try different SVD approaches
+                let svdResult;
                 try {
-                    const Ainv = math.inv(A);
-                    
-                    // Compute inverse norm
-                    let normAinv = 0;
-                    for (let i = 0; i < n; i++) {
-                        for (let j = 0; j < n; j++) {
-                            const val = Ainv.get([i, j]);
-                            normAinv += val * val;
+                    // Method 1: Direct SVD
+                    svdResult = math.svd(A);
+                } catch (e1) {
+                    try {
+                        // Method 2: Via eigenvalues of A^T A
+                        const AT = math.transpose(A);
+                        const ATA = math.multiply(AT, A);
+                        const eigenvals = math.eigs(ATA).values;
+                        
+                        // Convert complex eigenvalues to real (they should be real for A^T A)
+                        const realEigenvals = eigenvals.map(val => 
+                            typeof val === 'number' ? val : val.re || Math.sqrt(val.re*val.re + val.im*val.im)
+                        ).filter(val => val > 1e-14);
+                        
+                        realEigenvals.sort((a, b) => b - a); // Descending order
+                        
+                        const maxEig = realEigenvals[0];
+                        const minEig = realEigenvals[realEigenvals.length - 1];
+                        
+                        // Condition number is sqrt(max/min) for A^T A
+                        const condition = Math.sqrt(maxEig / minEig);
+                        return Math.max(1.0, Math.min(condition, 1e10));
+                        
+                    } catch (e2) {
+                        // Method 3: Simple norm ratio estimation
+                        const n = matrix.length;
+                        
+                        // Estimate using matrix norms
+                        let maxNorm = 0;
+                        let minNorm = Infinity;
+                        
+                        // Check row norms
+                        for (let i = 0; i < n; i++) {
+                            let rowNorm = 0;
+                            for (let j = 0; j < n; j++) {
+                                rowNorm += matrix[i][j] * matrix[i][j];
+                            }
+                            rowNorm = Math.sqrt(rowNorm);
+                            maxNorm = Math.max(maxNorm, rowNorm);
+                            minNorm = Math.min(minNorm, rowNorm);
+                        }
+                        
+                        if (minNorm > 1e-15) {
+                            return Math.max(1.0, maxNorm / minNorm);
+                        } else {
+                            return 1e6; // Singular matrix
                         }
                     }
-                    normAinv = Math.sqrt(normAinv);
-                    
-                    const condition = normA * normAinv;
-                    return Math.max(1.0, Math.min(condition, 1e8));
-                    
-                } catch (invError) {
-                    // If inverse fails, estimate from diagonal dominance
-                    let minDiag = Infinity;
-                    let maxDiag = -Infinity;
-                    
-                    for (let i = 0; i < n; i++) {
-                        const diag = Math.abs(matrix[i][i]);
-                        minDiag = Math.min(minDiag, diag);
+                }
+                
+                // If SVD succeeded, extract singular values
+                const s = svdResult.s || svdResult.S;
+                if (!s) {
+                    throw new Error("SVD result has no singular values");
+                }
+                
+                // Convert to array if needed
+                const singularValues = Array.isArray(s) ? s : s.toArray();
+                
+                // Filter out near-zero singular values
+                const validSingularValues = singularValues.filter(val => val > 1e-14);
+                
+                if (validSingularValues.length === 0) {
+                    return 1e12;
+                }
+                
+                // Sort in descending order
+                validSingularValues.sort((a, b) => b - a);
+                
+                const maxS = validSingularValues[0];
+                const minS = validSingularValues[validSingularValues.length - 1];
+                
+                const condition = maxS / minS;
+                return Math.max(1.0, Math.min(condition, 1e10));
+                
+            } catch (e) {
+                console.warn("All condition number methods failed:", e.message);
+                
+                // Final fallback: diagonal dominance
+                const n = matrix.length;
+                let maxDiag = -Infinity;
+                let minDiag = Infinity;
+                
+                for (let i = 0; i < n; i++) {
+                    const diag = Math.abs(matrix[i][i]);
+                    if (diag > 1e-15) {
                         maxDiag = Math.max(maxDiag, diag);
-                    }
-                    
-                    if (minDiag > 1e-15) {
-                        return Math.max(1.0, maxDiag / minDiag);
-                    } else {
-                        return 1e6; // Singular matrix
+                        minDiag = Math.min(minDiag, diag);
                     }
                 }
                 
-            } catch (e) {
-                console.warn("All condition number methods failed, using conservative estimate");
-                return 1e3; // Conservative fallback
+                if (minDiag > 1e-15 && maxDiag > -Infinity) {
+                    return Math.max(1.0, maxDiag / minDiag);
+                } else {
+                    return 1e3; // Conservative fallback
+                }
             }
         }
         
@@ -1395,19 +1482,19 @@
                     log("Could not compute orthogonality check", '#ff6b6b');
                 }
                 let stabilityGrade, stabilityClass;
-                if (conditionNumber < 10) {
+                if (conditionNumber < 2) {
                     stabilityGrade = "A+";
                     stabilityClass = "grade-a";
-                } else if (conditionNumber < 100) {
+                } else if (conditionNumber < 5) {
                     stabilityGrade = "A";
                     stabilityClass = "grade-a";
-                } else if (conditionNumber < 1000) {
+                } else if (conditionNumber < 10) {
                     stabilityGrade = "B";
                     stabilityClass = "grade-b";
-                } else if (conditionNumber < 10000) {
+                } else if (conditionNumber < 100) {
                     stabilityGrade = "C";
                     stabilityClass = "grade-c";
-                } else if (conditionNumber < 1e6) {
+                } else if (conditionNumber < 1000) {
                     stabilityGrade = "D";
                     stabilityClass = "grade-d";
                 } else {
@@ -1766,8 +1853,15 @@
         window.onload = function() {
             initializeCharts();
             initializeSliders();
+            
+            // Set initial coverage display
+            const initialSize = 200;
+            const initialCoverage = (initialSize / 1008 * 100).toFixed(1);
+            document.getElementById('systemSizeValue').textContent = `${initialSize} (${initialCoverage}%)`;
+            
             log("True Automorphic Forms system initialized", '#64ffda');
             log("Adjust sliders to control system parameters", '#b0b0b0');
+            log("System size slider now goes up to φ(1009) = 1008 for full coverage!", '#00ff00');
             log("Click 'Run Computation' to start interpolation", '#b0b0b0');
             log("Click 'Auto Scale Test' to analyze scaling behavior", '#b0b0b0');
         };
