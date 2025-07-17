@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unity Audio Visualizer Port</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 250px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        input[type="file"] {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 5px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 3px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin: 2px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        select {
+            width: 100%;
+            padding: 5px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 3px;
+        }
+        
+        .canvas-container {
+            margin-left: 280px;
+            margin-top: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .main-viz {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        .secondary-viz {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            flex-wrap: nowrap;
+        }
+        
+        .canvas-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+        
+        .canvas-group.main {
+            width: 100%;
+        }
+        
+        .canvas-group.secondary {
+            flex: 1;
+            min-width: 280px;
+            max-width: 300px;
+        }
+        
+        .canvas-label {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .canvas-label.main {
+            font-size: 18px;
+            color: #00ff00;
+        }
+        
+        canvas {
+            border: 1px solid #444;
+            background: #000;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .file-info {
+            margin: 10px 0;
+            padding: 8px;
+            background: #333;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 1200px) {
+            .secondary-viz {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .canvas-group.secondary {
+                max-width: 500px;
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                position: relative;
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            
+            .canvas-container {
+                margin-left: 0;
+                margin-top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h3>🎵 Audio Visualizer Controls</h3>
+        
+        <input type="file" id="audioFile" accept=".wav,audio/wav,audio/wave">
+        <div class="file-info" id="fileInfo">No file selected</div>
+        
+        <!-- Single toggle button -->
+        <button id="playPauseButton" disabled>▶ Play</button>
+        
+        <div class="control-group">
+            <label>Volume: <span id="volumeValue">1.0</span></label>
+            <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
+        </div>
+        
+        <div class="control-group">
+            <label>Amplitude: <span id="amplitudeValue">1.0</span></label>
+            <input type="range" id="amplitude" min="0.1" max="5" step="0.1" value="1">
+        </div>
+        
+        <div class="control-group">
+            <label>FFT Size: <span id="samplesValue">2048</span></label>
+            <select id="samples">
+                <option value="256">256</option>
+                <option value="512">512</option>
+                <option value="1024">1024</option>
+                <option value="2048" selected>2048</option>
+                <option value="4096">4096</option>
+                <option value="8192">8192</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Visualization Type:</label>
+            <select id="vizType">
+                <option value="fft">FFT Spectrum</option>
+                <option value="oscilloscope">Oscilloscope</option>
+                <option value="vectorscope">Vectorscope</option>
+                <option value="xy">X-Y Mode</option>
+                <option value="3d" selected>3D FFT</option>
+            </select>
+        </div>
+        
+        <div class="control-group" id="style3DGroup">
+            <label>3D Style:</label>
+            <select id="style3D">
+                <option value="standard">Standard</option>
+                <option value="center" selected>Center</option>
+                <option value="corner">Corner</option>
+                <option value="random">Random</option>
+            </select>
+        </div>
+        
+        <div class="control-group" id="surface3DGroup">
+            <label>3D Surface Options:</label>
+            <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                    <input type="checkbox" id="showPoints" checked> Show Points
+                </label>
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                    <input type="checkbox" id="showSurface"> Show Surface
+                </label>
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                    <input type="checkbox" id="showWireframe"> Surface Wireframe
+                </label>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>Channel:</label>
+            <select id="channel">
+                <option value="stereo">Stereo</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <!-- Main visualization - large and centered -->
+        <div class="main-viz">
+            <div class="canvas-group main">
+                <div class="canvas-label main">Main Visualization</div>
+                <canvas id="mainCanvas" width="900" height="500"></canvas>
+            </div>
+        </div>
+        
+        <!-- Secondary visualizations - three in a row -->
+        <div class="secondary-viz">
+            <div class="canvas-group secondary">
+                <div class="canvas-label">Waveform</div>
+                <canvas id="waveCanvas" width="300" height="180"></canvas>
+            </div>
+            
+            <div class="canvas-group secondary">
+                <div class="canvas-label">Frequency Bars</div>
+                <canvas id="barsCanvas" width="300" height="180"></canvas>
+            </div>
+            
+            <div class="canvas-group secondary">
+                <div class="canvas-label">Spectrum Analysis</div>
+                <canvas id="spectrumCanvas" width="300" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioPlayer" style="display: none;"></audio>
+
+    <script>
+    class AudioVisualizer {
+        constructor() {
+            this.audioContext   = null;
+            this.analyser       = null;
+            this.audioSource    = null;
+            this.dataArray      = null;
+            this.timeDataArray  = null;
+            this.leftTimeData   = null;
+            this.rightTimeData  = null;
+            this.splitter       = null;
+            this.leftAnalyser   = null;
+            this.rightAnalyser  = null;
+            this.isPlaying      = false;
+
+            // Canvas refs
+            this.mainCanvas    = document.getElementById('mainCanvas');
+            this.mainCtx       = this.mainCanvas.getContext('2d');
+            this.waveCanvas    = document.getElementById('waveCanvas');
+            this.waveCtx       = this.waveCanvas.getContext('2d');
+            this.barsCanvas    = document.getElementById('barsCanvas');
+            this.barsCtx       = this.barsCanvas.getContext('2d');
+            this.spectrumCanvas = document.getElementById('spectrumCanvas');
+            this.spectrumCtx   = this.spectrumCanvas.getContext('2d');
+
+            // Control refs
+            this.audioElement      = document.getElementById('audioPlayer');
+            this.fileInput         = document.getElementById('audioFile');
+            this.fileInfo          = document.getElementById('fileInfo');
+            this.playPauseButton   = document.getElementById('playPauseButton');
+
+            // Settings
+            this.volume    = 1.0;
+            this.amplitude = 1.0;
+            this.fftSize   = 2048;
+            this.vizType   = '3d';
+            this.channel   = 'stereo';
+
+            // 3D data
+            this.samples3D   = [];
+            this.rectSamples = [];
+            this.indexList   = [];
+            this.sqrRoot     = 0;
+            this.style3D     = 'center';
+            this.showPoints  = true;
+            this.showSurface = false;
+            this.showWireframe = false;
+            
+            // 3D Camera controls
+            this.camera = {
+                distance: 400,
+                angleX: 0.3,
+                angleY: 0,
+                minDistance: 200,
+                maxDistance: 800
+            };
+            this.isDragging = false;
+            this.lastMouseX = 0;
+            this.lastMouseY = 0;
+
+            this.setupEventListeners();
+            this.setupCanvases();
+            this.loadDefaultAudio();
+            this.animate();
+        }
+
+        setupEventListeners() {
+            this.fileInput.addEventListener('change', (e) => this.loadAudioFile(e));
+            this.playPauseButton.addEventListener('click', () => this.togglePlayPause());
+
+            document.getElementById('volume').addEventListener('input', (e) => {
+                this.volume = parseFloat(e.target.value);
+                document.getElementById('volumeValue').textContent = this.volume.toFixed(1);
+                this.audioElement.volume = this.volume;
+            });
+
+            document.getElementById('amplitude').addEventListener('input', (e) => {
+                this.amplitude = parseFloat(e.target.value);
+                document.getElementById('amplitudeValue').textContent = this.amplitude.toFixed(1);
+            });
+
+            document.getElementById('samples').addEventListener('change', (e) => {
+                this.fftSize = parseInt(e.target.value);
+                document.getElementById('samplesValue').textContent = this.fftSize;
+                this.setupAnalyser();
+            });
+
+            document.getElementById('vizType').addEventListener('change', (e) => {
+                this.vizType = e.target.value;
+                this.setupFor3D();
+                // Show/hide 3D style controls
+                const style3DGroup = document.getElementById('style3DGroup');
+                const surface3DGroup = document.getElementById('surface3DGroup');
+                const is3D = this.vizType === '3d';
+                style3DGroup.style.display = is3D ? 'block' : 'none';
+                surface3DGroup.style.display = is3D ? 'block' : 'none';
+            });
+
+            document.getElementById('style3D').addEventListener('change', (e) => {
+                this.style3D = e.target.value;
+                this.setupFor3D();
+            });
+
+            document.getElementById('showPoints').addEventListener('change', (e) => {
+                this.showPoints = e.target.checked;
+            });
+
+            document.getElementById('showSurface').addEventListener('change', (e) => {
+                this.showSurface = e.target.checked;
+            });
+
+            document.getElementById('showWireframe').addEventListener('change', (e) => {
+                this.showWireframe = e.target.checked;
+            });
+
+            document.getElementById('channel').addEventListener('change', (e) => {
+                this.channel = e.target.value;
+            });
+
+            this.audioElement.addEventListener('ended', () => {
+                this.isPlaying = false;
+                this.playPauseButton.textContent = '▶ Play';
+            });
+            
+            // 3D camera controls
+            this.mainCanvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+            this.mainCanvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+            this.mainCanvas.addEventListener('mouseup', () => this.onMouseUp());
+            this.mainCanvas.addEventListener('wheel', (e) => this.onWheel(e));
+            this.mainCanvas.addEventListener('mouseleave', () => this.onMouseUp());
+        }
+
+        setupCanvases() {
+            [ this.mainCtx, this.waveCtx, this.barsCtx, this.spectrumCtx ].forEach(ctx => {
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth   = 1;
+                ctx.fillStyle   = '#00ff00';
+            });
+        }
+
+        loadDefaultAudio() {
+            this.audioElement.src = 'assets/Demo.wav';
+            this.fileInfo.textContent = 'Loading: Demo.wav (Default)...';
+            this.fileInfo.style.color = '#ffc107';
+
+            this.audioElement.addEventListener('canplaythrough', () => {
+                this.fileInfo.textContent = 'Ready: Demo.wav (Default)';
+                this.fileInfo.style.color = '#28a745';
+                this.playPauseButton.disabled = false;
+            }, { once: true });
+
+            this.audioElement.addEventListener('error', () => {
+                this.fileInfo.textContent = 'Error loading Demo.wav - please select a file';
+                this.fileInfo.style.color = '#dc3545';
+            }, { once: true });
+        }
+
+        async loadAudioFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.name.toLowerCase().endsWith('.wav')) {
+                const fileURL = URL.createObjectURL(file);
+                this.audioElement.src = fileURL;
+                this.fileInfo.textContent = `Loading: ${file.name}...`;
+                this.fileInfo.style.color = '#ffc107';
+
+                this.audioElement.addEventListener('canplaythrough', () => {
+                    this.fileInfo.textContent = `Ready: ${file.name}`;
+                    this.fileInfo.style.color = '#28a745';
+                    this.playPauseButton.disabled = false;
+                }, { once: true });
+
+                this.audioElement.addEventListener('error', () => {
+                    this.fileInfo.textContent = `Cannot play: ${file.name}`;
+                    this.fileInfo.style.color = '#dc3545';
+                }, { once: true });
+            } else {
+                this.fileInfo.textContent = 'Please select a WAV audio file';
+                this.fileInfo.style.color = '#dc3545';
+            }
+        }
+
+        async setupAudioContext() {
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.audioSource  = this.audioContext.createMediaElementSource(this.audioElement);
+                this.setupAnalyser();
+                this.audioSource.connect(this.audioContext.destination);
+            }
+
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+        }
+
+        setupAnalyser() {
+            if (this.analyser) {
+                this.analyser.disconnect();
+            }
+
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = this.fftSize;
+            this.analyser.smoothingTimeConstant = 0.8;
+
+            // Create a splitter to separate left/right channels
+            this.splitter = this.audioContext.createChannelSplitter(2);
+            this.leftAnalyser = this.audioContext.createAnalyser();
+            this.rightAnalyser = this.audioContext.createAnalyser();
+            
+            this.leftAnalyser.fftSize = this.fftSize;
+            this.rightAnalyser.fftSize = this.fftSize;
+            
+            this.audioSource.connect(this.splitter);
+            this.audioSource.connect(this.analyser);
+            this.splitter.connect(this.leftAnalyser, 0);
+            this.splitter.connect(this.rightAnalyser, 1);
+
+            const bufferLength = this.analyser.frequencyBinCount;
+            this.dataArray = new Uint8Array(bufferLength);
+            this.timeDataArray = new Uint8Array(bufferLength);
+            this.leftTimeData = new Uint8Array(bufferLength);
+            this.rightTimeData = new Uint8Array(bufferLength);
+
+            this.setupFor3D();
+        }
+
+        setupFor3D() {
+            if (this.vizType === '3d') {
+                this.sqrRoot = Math.floor(Math.sqrt(this.fftSize / 2));
+                const maxIndex = this.sqrRoot * this.sqrRoot;
+                this.rectSamples = [];
+                let x = 0, y = 0;
+                
+                // Generate base rectangular grid
+                for (let i = 0; i < maxIndex; i++) {
+                    const nx = this.normalize(x, 0, this.sqrRoot);
+                    const ny = this.normalize(y, 0, this.sqrRoot);
+                    this.rectSamples.push({ 
+                        x: (nx - 0.5) * 300, 
+                        y: 0, 
+                        z: (ny - 0.5) * 300 
+                    });
+                    if (y === this.sqrRoot - 1) { x++; y = 0; } else { y++; }
+                }
+                
+                // Apply arrangement style
+                this.setupArrangement();
+            }
+        }
+
+        setupArrangement() {
+            this.indexList = [];
+            
+            switch (this.style3D) {
+                case 'standard':
+                    // Use natural order (0, 1, 2, 3...)
+                    for (let i = 0; i < this.rectSamples.length; i++) {
+                        this.indexList[i] = i;
+                    }
+                    break;
+                case 'center':
+                    this.getCenterIndices();
+                    break;
+                case 'corner':
+                    this.getRectArrange();
+                    break;
+                case 'random':
+                    this.getRandomIndices();
+                    break;
+            }
+        }
+
+        // Center arrangement - sort by distance from center
+        getCenterIndices() {
+            const centerIndex = this.getMidIndex();
+            const centerPoint = this.rectSamples[centerIndex];
+            
+            // Create array of indices with distances
+            const pointsWithDistance = this.rectSamples.map((point, index) => ({
+                index: index,
+                distance: Math.sqrt(
+                    Math.pow(point.x - centerPoint.x, 2) + 
+                    Math.pow(point.z - centerPoint.z, 2)
+                )
+            }));
+            
+            // Sort by distance from center
+            pointsWithDistance.sort((a, b) => a.distance - b.distance);
+            
+            // Extract sorted indices
+            this.indexList = pointsWithDistance.map(item => item.index);
+        }
+
+        // Find center index
+        getMidIndex() {
+            const midDex = [];
+            const n = this.sqrRoot + 1;
+            let dex = 0;
+            
+            while (dex < this.rectSamples.length) {
+                midDex.push(dex);
+                dex += n;
+            }
+            
+            midDex.sort((a, b) => a - b);
+            return midDex[Math.floor(midDex.length / 2)];
+        }
+
+        // Corner arrangement - spiral from corners
+        getRectArrange() {
+            this.indexList = [];
+            let rowNum = 1;
+            let counter = 0;
+            const n = this.sqrRoot - 1;
+
+            // First loop
+            while (rowNum <= this.sqrRoot) {
+                let num = rowNum - 1;
+                this.indexList.push(num);
+
+                while (counter < rowNum - 1) {
+                    num += n;
+                    this.indexList.push(num);
+                    counter++;
+                }
+                counter = 0;
+                rowNum++;
+            }
+            
+            let offset = 1;
+
+            // Second loop
+            while (rowNum < this.sqrRoot * 2) {
+                let num = rowNum - 1 + n * offset;
+
+                if (num >= 0 && num < this.rectSamples.length) {
+                    this.indexList.push(num);
+                }
+
+                while (counter < rowNum - offset - 2) {
+                    num += n;
+                    if (num >= 0 && num < this.rectSamples.length) {
+                        this.indexList.push(num);
+                    }
+                    counter++;
+                }
+
+                counter = offset;
+                rowNum++;
+                offset++;
+            }
+        }
+
+        // Surface interpolation and mesh generation
+        createSurfaceMesh(points3D) {
+            const triangles = [];
+            const resolution = this.sqrRoot;
+            
+            // Create triangles from the grid
+            for (let i = 0; i < resolution - 1; i++) {
+                for (let j = 0; j < resolution - 1; j++) {
+                    // Get the four corners of each grid cell
+                    const p1 = this.getPointAt(points3D, i, j, resolution);
+                    const p2 = this.getPointAt(points3D, i + 1, j, resolution);
+                    const p3 = this.getPointAt(points3D, i, j + 1, resolution);
+                    const p4 = this.getPointAt(points3D, i + 1, j + 1, resolution);
+                    
+                    if (p1 && p2 && p3 && p4) {
+                        // Create two triangles for each quad
+                        triangles.push([p1, p2, p3]);
+                        triangles.push([p2, p4, p3]);
+                    }
+                }
+            }
+            
+            return triangles;
+        }
+
+        getPointAt(points3D, i, j, resolution) {
+            const index = i * resolution + j;
+            return points3D.find(p => p.gridI === i && p.gridJ === j);
+        }
+
+        // Interpolate height using bicubic interpolation
+        bicubicInterpolate(points, x, y) {
+            // Simplified bicubic - for now just use bilinear
+            const x1 = Math.floor(x);
+            const y1 = Math.floor(y);
+            const x2 = x1 + 1;
+            const y2 = y1 + 1;
+            
+            const dx = x - x1;
+            const dy = y - y1;
+            
+            const p11 = this.getHeightAt(points, x1, y1);
+            const p12 = this.getHeightAt(points, x1, y2);
+            const p21 = this.getHeightAt(points, x2, y1);
+            const p22 = this.getHeightAt(points, x2, y2);
+            
+            // Bilinear interpolation
+            const r1 = p11 * (1 - dx) + p21 * dx;
+            const r2 = p12 * (1 - dx) + p22 * dx;
+            
+            return r1 * (1 - dy) + r2 * dy;
+        }
+
+        getHeightAt(points, i, j) {
+            const point = points.find(p => p.gridI === i && p.gridJ === j);
+            return point ? point.y : 0;
+        }
+
+        // Get color based on height (gradient)
+        getHeightColor(height, alpha = 1.0) {
+            const normalizedHeight = Math.max(0, Math.min(1, (height + 200) / 400)); // Normalize height range
+            
+            if (normalizedHeight <= 0.2) {
+                // Blue to Cyan
+                const t = normalizedHeight / 0.2;
+                return `rgba(${Math.floor(0 * (1-t) + 0 * t)}, ${Math.floor(0 * (1-t) + 255 * t)}, ${Math.floor(255 * (1-t) + 255 * t)}, ${alpha})`;
+            } else if (normalizedHeight <= 0.4) {
+                // Cyan to Green
+                const t = (normalizedHeight - 0.2) / 0.2;
+                return `rgba(${Math.floor(0 * (1-t) + 0 * t)}, ${Math.floor(255)}, ${Math.floor(255 * (1-t) + 0 * t)}, ${alpha})`;
+            } else if (normalizedHeight <= 0.6) {
+                // Green to Yellow
+                const t = (normalizedHeight - 0.4) / 0.2;
+                return `rgba(${Math.floor(0 * (1-t) + 255 * t)}, ${Math.floor(255)}, ${Math.floor(0)}, ${alpha})`;
+            } else if (normalizedHeight <= 0.8) {
+                // Yellow to Orange
+                const t = (normalizedHeight - 0.6) / 0.2;
+                return `rgba(${Math.floor(255)}, ${Math.floor(255 * (1-t) + 165 * t)}, ${Math.floor(0)}, ${alpha})`;
+            } else {
+                // Orange to Red
+                const t = (normalizedHeight - 0.8) / 0.2;
+                return `rgba(${Math.floor(255)}, ${Math.floor(165 * (1-t) + 0 * t)}, ${Math.floor(0)}, ${alpha})`;
+            }
+        }
+
+        drawSurface(points3D, screenPoints) {
+            if (!this.showSurface) return;
+            
+            // Create a proper 2D grid from our points based on arrangement style
+            const grid = [];
+            for (let i = 0; i < this.sqrRoot; i++) {
+                grid[i] = [];
+                for (let j = 0; j < this.sqrRoot; j++) {
+                    grid[i][j] = null;
+                }
+            }
+            
+            // Fill grid based on style
+            if (this.style3D === 'standard') {
+                // Standard: direct grid mapping
+                points3D.forEach((point, index) => {
+                    const i = Math.floor(index / this.sqrRoot);
+                    const j = index % this.sqrRoot;
+                    if (i < this.sqrRoot && j < this.sqrRoot) {
+                        grid[i][j] = point;
+                    }
+                });
+            } else {
+                // Other styles: map through indexList
+                points3D.forEach((point, dataIndex) => {
+                    if (dataIndex < this.indexList.length) {
+                        const rectIndex = this.indexList[dataIndex];
+                        const i = Math.floor(rectIndex / this.sqrRoot);
+                        const j = rectIndex % this.sqrRoot;
+                        if (i < this.sqrRoot && j < this.sqrRoot) {
+                            grid[i][j] = point;
+                        }
+                    }
+                });
+            }
+            
+            // Create triangles from the properly organized grid
+            const triangles = [];
+            for (let i = 0; i < this.sqrRoot - 1; i++) {
+                for (let j = 0; j < this.sqrRoot - 1; j++) {
+                    const p1 = grid[i][j];
+                    const p2 = grid[i + 1][j];
+                    const p3 = grid[i][j + 1];
+                    const p4 = grid[i + 1][j + 1];
+                    
+                    if (p1 && p2 && p3 && p4) {
+                        // Create two triangles for each quad with proper winding
+                        triangles.push([p1, p2, p3]);
+                        triangles.push([p2, p4, p3]);
+                    }
+                }
+            }
+            
+            // Project triangles and sort by depth
+            const projectedTriangles = triangles.map(triangle => {
+                const projected = triangle.map(point => {
+                    const screen = this.project3D(point.x, point.y, point.z, this.mainCanvas.width, this.mainCanvas.height);
+                    return { ...point, screenX: screen.x, screenY: screen.y, depth: screen.z };
+                });
+                
+                // Calculate average depth for sorting
+                const avgDepth = projected.reduce((sum, p) => sum + p.depth, 0) / 3;
+                return { points: projected, avgDepth };
+            });
+            
+            // Sort triangles by depth (far to near)
+            projectedTriangles.sort((a, b) => b.avgDepth - a.avgDepth);
+            
+            // Draw triangles
+            projectedTriangles.forEach(triangle => {
+                const points = triangle.points;
+                
+                // Calculate average intensity for coloring (match point coloring)
+                const avgIntensity = points.reduce((sum, p) => sum + p.intensity, 0) / 3;
+                
+                // Use same color scheme as points (darker white, higher opacity)
+                let color;
+                if (avgIntensity <= 0.1) color = 'rgba(128, 128, 128, 0.9)';        // Gray: very low (easier on eyes)
+                else if (avgIntensity <= 0.3) color = 'rgba(0, 255, 255, 0.9)';     // Cyan: low
+                else if (avgIntensity <= 0.5) color = 'rgba(0, 255, 0, 0.9)';       // Green: medium
+                else if (avgIntensity <= 0.7) color = 'rgba(255, 255, 0, 0.9)';     // Yellow: high
+                else color = 'rgba(255, 0, 0, 0.9)';                                // Red: very high
+                
+                this.mainCtx.beginPath();
+                this.mainCtx.moveTo(points[0].screenX, points[0].screenY);
+                this.mainCtx.lineTo(points[1].screenX, points[1].screenY);
+                this.mainCtx.lineTo(points[2].screenX, points[2].screenY);
+                this.mainCtx.closePath();
+                
+                // Fill triangle with intensity-based color (matching points)
+                this.mainCtx.fillStyle = color;
+                this.mainCtx.fill();
+                
+                // Draw wireframe if enabled
+                if (this.showWireframe) {
+                    this.mainCtx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                    this.mainCtx.lineWidth = 0.5;
+                    this.mainCtx.stroke();
+                }
+            });
+        }
+
+        normalize(val, min, max) {
+            if (min < 0) {
+                val   += -min;
+                max   += -min;
+                min    = 0;
+            }
+            return Math.max(0, Math.min(1, (val - min) / (max - min)));
+        }
+
+        async togglePlayPause() {
+            if (this.isPlaying) {
+                this.pause();
+            } else {
+                await this.play();
+            }
+        }
+
+        async play() {
+            await this.setupAudioContext();
+            this.audioElement.play();
+            this.isPlaying = true;
+            this.playPauseButton.textContent = '⏸ Pause';
+        }
+
+        pause() {
+            this.audioElement.pause();
+            this.isPlaying = false;
+            this.playPauseButton.textContent = '▶ Play';
+        }
+
+        // 3D Camera control methods
+        onMouseDown(e) {
+            this.isDragging = true;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+        }
+
+        onMouseMove(e) {
+            if (!this.isDragging) return;
+            
+            const deltaX = e.clientX - this.lastMouseX;
+            const deltaY = e.clientY - this.lastMouseY;
+            
+            this.camera.angleY += deltaX * 0.01;
+            this.camera.angleX += deltaY * 0.01;
+            
+            // Limit vertical rotation
+            this.camera.angleX = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, this.camera.angleX));
+            
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+        }
+
+        onMouseUp() {
+            this.isDragging = false;
+        }
+
+        onWheel(e) {
+            e.preventDefault();
+            this.camera.distance += e.deltaY * 0.5;
+            this.camera.distance = Math.max(this.camera.minDistance, Math.min(this.camera.maxDistance, this.camera.distance));
+        }
+
+        // 3D projection helper
+        project3D(x, y, z, width, height) {
+            // Apply camera rotation
+            const cosX = Math.cos(this.camera.angleX);
+            const sinX = Math.sin(this.camera.angleX);
+            const cosY = Math.cos(this.camera.angleY);
+            const sinY = Math.sin(this.camera.angleY);
+            
+            // Rotate around Y axis
+            const x1 = x * cosY - z * sinY;
+            const z1 = x * sinY + z * cosY;
+            
+            // Rotate around X axis
+            const y2 = y * cosX - z1 * sinX;
+            const z2 = y * sinX + z1 * cosX;
+            
+            // Apply camera distance
+            const finalZ = z2 + this.camera.distance;
+            
+            // Perspective projection
+            const fov = 400;
+            const screenX = (x1 * fov) / finalZ + width / 2;
+            const screenY = (y2 * fov) / finalZ + height / 2;
+            
+            return { x: screenX, y: screenY, z: finalZ };
+        }
+
+        getAudioData() {
+            if (!this.analyser) return null;
+            this.analyser.getByteFrequencyData(this.dataArray);
+            this.analyser.getByteTimeDomainData(this.timeDataArray);
+            
+            // Get separate left/right channel data for X-Y mode
+            if (this.leftAnalyser && this.rightAnalyser) {
+                this.leftAnalyser.getByteTimeDomainData(this.leftTimeData);
+                this.rightAnalyser.getByteTimeDomainData(this.rightTimeData);
+            }
+            
+            return { 
+                frequency: this.dataArray, 
+                time: this.timeDataArray,
+                leftTime: this.leftTimeData,
+                rightTime: this.rightTimeData
+            };
+        }
+
+        drawFFT() {
+            const data = this.getAudioData();
+            if (!data) return;
+            const { width, height } = this.mainCanvas;
+            this.mainCtx.clearRect(0, 0, width, height);
+            
+            // Create gradient
+            const gradient = this.mainCtx.createLinearGradient(0, height, 0, 0);
+            gradient.addColorStop(0, '#00ff00');
+            gradient.addColorStop(0.5, '#ffff00');
+            gradient.addColorStop(1, '#ff0000');
+            
+            this.mainCtx.strokeStyle = gradient;
+            this.mainCtx.lineWidth = 2;
+            this.mainCtx.beginPath();
+            const sliceWidth = width / data.frequency.length;
+            let x = 0;
+            for (let i = 0; i < data.frequency.length; i++) {
+                const v = data.frequency[i] / 255;
+                const y = height - (v * height * this.amplitude);
+                if (i === 0) this.mainCtx.moveTo(x, y);
+                else         this.mainCtx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            this.mainCtx.stroke();
+            
+            // Draw glow effect
+            this.mainCtx.shadowBlur = 10;
+            this.mainCtx.shadowColor = '#00ff00';
+            this.mainCtx.stroke();
+            this.mainCtx.shadowBlur = 0;
+        }
+
+        drawOscilloscope() {
+            const data = this.getAudioData();
+            if (!data) return;
+            const { width, height } = this.mainCanvas;
+            this.mainCtx.clearRect(0, 0, width, height);
+            
+            // Grid
+            this.mainCtx.strokeStyle = '#333';
+            this.mainCtx.lineWidth = 1;
+            this.mainCtx.beginPath();
+            for (let i = 0; i <= 10; i++) {
+                const y = (height / 10) * i;
+                this.mainCtx.moveTo(0, y);
+                this.mainCtx.lineTo(width, y);
+            }
+            this.mainCtx.stroke();
+            
+            this.mainCtx.strokeStyle = '#00ffff';
+            this.mainCtx.lineWidth = 2;
+            this.mainCtx.beginPath();
+            const sliceWidth = width / data.time.length;
+            let x = 0;
+            for (let i = 0; i < data.time.length; i++) {
+                const v = (data.time[i] - 128) / 128;
+                const y = height / 2 + (v * height / 2 * this.amplitude);
+                if (i === 0) this.mainCtx.moveTo(x, y);
+                else         this.mainCtx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            this.mainCtx.stroke();
+        }
+
+        drawVectorscope() {
+            const data = this.getAudioData();
+            if (!data) return;
+            const { width, height } = this.mainCanvas;
+            const cx = width / 2, cy = height / 2;
+            this.mainCtx.clearRect(0, 0, width, height);
+            
+            // Center cross and circles
+            this.mainCtx.strokeStyle = '#333';
+            this.mainCtx.lineWidth = 1;
+            this.mainCtx.beginPath();
+            this.mainCtx.moveTo(0, cy); this.mainCtx.lineTo(width, cy);
+            this.mainCtx.moveTo(cx, 0); this.mainCtx.lineTo(cx, height);
+            // Circles
+            for (let r = 50; r <= 200; r += 50) {
+                this.mainCtx.beginPath();
+                this.mainCtx.arc(cx, cy, r, 0, 2 * Math.PI);
+                this.mainCtx.stroke();
+            }
+            
+            // Vector dots
+            this.mainCtx.fillStyle = '#ff00ff';
+            for (let i = 0; i < data.frequency.length; i += 2) {
+                const l = (data.frequency[i] - 128) / 128;
+                const r = (data.frequency[i + 1] - 128) / 128;
+                const x = cx + l * cx * this.amplitude * 0.8;
+                const y = cy + r * cy * this.amplitude * 0.8;
+                this.mainCtx.fillRect(x - 1, y - 1, 3, 3);
+            }
+        }
+
+        drawXYMode() {
+            const data = this.getAudioData();
+            if (!data || !data.leftTime || !data.rightTime) return;
+            const { width, height } = this.mainCanvas;
+            this.mainCtx.clearRect(0, 0, width, height);
+            
+            const cx = width / 2, cy = height / 2;
+            
+            // Draw center cross for reference
+            this.mainCtx.strokeStyle = '#333';
+            this.mainCtx.lineWidth = 1;
+            this.mainCtx.beginPath();
+            this.mainCtx.moveTo(0, cy); this.mainCtx.lineTo(width, cy);
+            this.mainCtx.moveTo(cx, 0); this.mainCtx.lineTo(cx, height);
+            this.mainCtx.stroke();
+            
+            this.mainCtx.strokeStyle = '#00ff00';
+            this.mainCtx.lineWidth = 1.5;
+            this.mainCtx.beginPath();
+            
+            // Use actual left/right channel data for true X-Y plotting
+            for (let i = 0; i < data.leftTime.length; i++) {
+                const left = (data.leftTime[i] - 128) / 128;   // X axis
+                const right = (data.rightTime[i] - 128) / 128; // Y axis
+                
+                const x = cx + (left * cx * 0.9);
+                const y = cy - (right * cy * 0.9);  // Invert Y for proper orientation
+                
+                if (i === 0) this.mainCtx.moveTo(x, y);
+                else this.mainCtx.lineTo(x, y);
+            }
+            
+            this.mainCtx.stroke();
+        }
+
+        // Random arrangement - Fisher-Yates shuffle
+        getRandomIndices() {
+            // Start with standard order
+            this.indexList = [];
+            for (let i = 0; i < this.rectSamples.length; i++) {
+                this.indexList[i] = i;
+            }
+            
+            // Fisher-Yates shuffle
+            for (let i = this.indexList.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.indexList[i], this.indexList[j]] = [this.indexList[j], this.indexList[i]];
+            }
+        }
+
+        draw3DFFT() {
+            const data = this.getAudioData();
+            if (!data || !this.rectSamples.length) return;
+            const { width, height } = this.mainCanvas;
+            this.mainCtx.clearRect(0, 0, width, height);
+            
+            // Create 3D points with audio data using arrangement style
+            const points3D = [];
+            
+            if (this.style3D === 'standard') {
+                // Standard: direct mapping
+                this.rectSamples.forEach((rect, i) => {
+                    if (i >= data.frequency.length) return;
+                    const intensity = data.frequency[i] / 255;
+                    const heightMultiplier = this.amplitude * 100;
+                    
+                    points3D.push({
+                        x: rect.x,
+                        y: -intensity * heightMultiplier,
+                        z: rect.z,
+                        intensity: intensity,
+                        originalIndex: i
+                    });
+                });
+            } else {
+                // Other styles: use index mapping
+                for (let i = 0; i < Math.min(data.frequency.length, this.indexList.length); i++) {
+                    const rectIndex = this.indexList[i];
+                    if (rectIndex >= this.rectSamples.length) continue;
+                    
+                    const rect = this.rectSamples[rectIndex];
+                    const intensity = data.frequency[i] / 255;
+                    const heightMultiplier = this.amplitude * 100;
+                    
+                    points3D.push({
+                        x: rect.x,
+                        y: -intensity * heightMultiplier,
+                        z: rect.z,
+                        intensity: intensity,
+                        originalIndex: rectIndex
+                    });
+                }
+            }
+            
+            // Project 3D points to 2D screen coordinates
+            const screenPoints = points3D.map(point => {
+                const projected = this.project3D(point.x, point.y, point.z, width, height);
+                return {
+                    ...point,
+                    screenX: projected.x,
+                    screenY: projected.y,
+                    depth: projected.z
+                };
+            });
+            
+            // Draw surface first (behind points)
+            if (this.showSurface) {
+                this.drawSurface(points3D, screenPoints);
+            }
+            
+            // Sort points by depth for painter's algorithm (far to near)
+            screenPoints.sort((a, b) => b.depth - a.depth);
+            
+            // Draw grid lines
+            if (this.showPoints) {
+                this.mainCtx.strokeStyle = '#333';
+                this.mainCtx.lineWidth = 0.5;
+                for (let i = 0; i < this.sqrRoot; i++) {
+                    this.mainCtx.beginPath();
+                    // Horizontal lines
+                    for (let j = 0; j < this.sqrRoot; j++) {
+                        const point = screenPoints.find(p => p.originalIndex === i * this.sqrRoot + j);
+                        if (point) {
+                            if (j === 0) this.mainCtx.moveTo(point.screenX, point.screenY);
+                            else this.mainCtx.lineTo(point.screenX, point.screenY);
+                        }
+                    }
+                    this.mainCtx.stroke();
+                    
+                    this.mainCtx.beginPath();
+                    // Vertical lines
+                    for (let j = 0; j < this.sqrRoot; j++) {
+                        const point = screenPoints.find(p => p.originalIndex === j * this.sqrRoot + i);
+                        if (point) {
+                            if (j === 0) this.mainCtx.moveTo(point.screenX, point.screenY);
+                            else this.mainCtx.lineTo(point.screenX, point.screenY);
+                        }
+                    }
+                    this.mainCtx.stroke();
+                }
+                
+                // Draw points with color coding
+                screenPoints.forEach(point => {
+                    // Color based on intensity (adjusted thresholds for web audio)
+                    let color;
+                    if (point.intensity <= 0.1) color = '#ffffff';        // White: very low
+                    else if (point.intensity <= 0.3) color = '#00ffff';   // Cyan: low
+                    else if (point.intensity <= 0.5) color = '#00ff00';   // Green: medium
+                    else if (point.intensity <= 0.7) color = '#ffff00';   // Yellow: high
+                    else color = '#ff0000';                               // Red: very high
+                    
+                    this.mainCtx.fillStyle = color;
+                    
+                    // Point size based on distance, intensity, and FFT size
+                    const fftSizeMultiplier = Math.max(0.15, 1024 / this.fftSize); // Much smaller points for larger FFT
+                    const baseSize = 2 * fftSizeMultiplier;
+                    const size = Math.max(0.3, baseSize * (1000 / point.depth) * (1 + point.intensity * 0.3));
+                    
+                    this.mainCtx.fillRect(
+                        point.screenX - size/2, 
+                        point.screenY - size/2, 
+                        size, 
+                        size
+                    );
+                });
+            }
+            
+            // Draw camera info
+            this.mainCtx.fillStyle = '#666';
+            this.mainCtx.font = '12px Arial';
+            this.mainCtx.fillText(`Distance: ${this.camera.distance.toFixed(0)} | Style: ${this.style3D} | Drag to orbit, scroll to zoom`, 10, height - 20);
+        }
+
+        drawWaveform() {
+            const data = this.getAudioData();
+            if (!data) return;
+            const { width, height } = this.waveCanvas;
+            this.waveCtx.clearRect(0, 0, width, height);
+            this.waveCtx.beginPath();
+            const sliceWidth = width / data.time.length;
+            let x = 0;
+            data.time.forEach((t, i) => {
+                const v = (t - 128) / 128;
+                const y = height/2 + v * height/2 * 0.8;
+                if (i === 0) this.waveCtx.moveTo(x, y);
+                else         this.waveCtx.lineTo(x, y);
+                x += sliceWidth;
+            });
+            this.waveCtx.strokeStyle = '#ffff00';
+            this.waveCtx.lineWidth = 1.5;
+            this.waveCtx.stroke();
+        }
+
+        drawFrequencyBars() {
+            const data = this.getAudioData();
+            if (!data) return;
+            const { width, height } = this.barsCanvas;
+            this.barsCtx.clearRect(0, 0, width, height);
+            const barWidth = width / data.frequency.length;
+            data.frequency.forEach((f, i) => {
+                const intensity = f / 255;
+                const minHeight = 2; // Minimum height so bars are always visible
+                const h = Math.max(minHeight, intensity * height);
+                const hue = i / data.frequency.length * 360;
+                this.barsCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                this.barsCtx.fillRect(i * barWidth, height - h, barWidth, h);
+            });
+        }
+
+        drawSpectrum() {
+            const data = this.getAudioData();
+            if (!data) return;
+            const { width, height } = this.spectrumCanvas;
+            this.spectrumCtx.clearRect(0, 0, width, height);
+            
+            // Create circular spectrum
+            const cx = width / 2, cy = height / 2;
+            const radius = Math.min(width, height) / 3;
+            
+            data.frequency.forEach((f, i) => {
+                const angle = (i / data.frequency.length) * 2 * Math.PI;
+                const intensity = f / 255;
+                const lineLength = intensity * radius;
+                
+                const x1 = cx + Math.cos(angle) * radius * 0.3;
+                const y1 = cy + Math.sin(angle) * radius * 0.3;
+                const x2 = cx + Math.cos(angle) * (radius * 0.3 + lineLength);
+                const y2 = cy + Math.sin(angle) * (radius * 0.3 + lineLength);
+                
+                const hue = (i / data.frequency.length) * 360;
+                this.spectrumCtx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+                this.spectrumCtx.lineWidth = 2;
+                this.spectrumCtx.beginPath();
+                this.spectrumCtx.moveTo(x1, y1);
+                this.spectrumCtx.lineTo(x2, y2);
+                this.spectrumCtx.stroke();
+            });
+        }
+
+        animate() {
+            requestAnimationFrame(() => this.animate());
+            if (!this.isPlaying) return;
+            
+            switch (this.vizType) {
+                case 'fft':          this.drawFFT();        break;
+                case 'oscilloscope': this.drawOscilloscope(); break;
+                case 'vectorscope':  this.drawVectorscope();  break;
+                case 'xy':           this.drawXYMode();      break;
+                case '3d':           this.draw3DFFT();       break;
+            }
+            this.drawWaveform();
+            this.drawFrequencyBars();
+            this.drawSpectrum();
+        }
+    }
+
+    // kick things off
+    const visualizer = new AudioVisualizer();
+    </script>
+</body>
+</html>
