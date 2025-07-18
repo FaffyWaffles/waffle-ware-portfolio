@@ -273,35 +273,45 @@ class MeshBounceAnalyzer {
         const rays = [baseDirection];
         
         for (let i = 0; i < nRays; i++) {
-            // Generate random point on cone
+            // Generate random angles using the same method as Python
             const phi = thetaRadians * Math.sqrt(Math.random());
             const omega = 2 * Math.PI * Math.random();
             
-            const x = Math.sin(phi) * Math.cos(omega);
-            const y = Math.sin(phi) * Math.sin(omega);
-            const z = Math.cos(phi);
+            // Convert to cartesian coordinates (relative to z-axis)
+            const sinPhi = Math.sin(phi);
+            const perturbation = new Vector3(
+                sinPhi * Math.cos(omega),
+                sinPhi * Math.sin(omega),
+                Math.cos(phi)
+            );
             
-            const perturbation = new Vector3(x, y, z);
             const zAxis = new Vector3(0, 0, 1);
             let rotatedRay;
             
-            if (Math.abs(baseDirection.dot(zAxis)) > 0.9999) {
+            // Check if base direction is nearly parallel to z-axis
+            const dotProduct = baseDirection.dot(zAxis);
+            if (Math.abs(dotProduct) > 0.9999) {
                 // Base direction is nearly parallel to z-axis
-                rotatedRay = perturbation;
+                rotatedRay = perturbation.clone();
                 if (baseDirection.z < 0) {
                     rotatedRay = rotatedRay.multiply(-1);
                 }
             } else {
-                // Use Rodrigues' rotation formula
-                const axis = zAxis.cross(baseDirection).normalize();
-                const angle = Math.acos(Math.max(-1, Math.min(1, zAxis.dot(baseDirection))));
+                // Use Rodrigues' rotation formula - more accurate implementation
+                const rotationAxis = zAxis.cross(baseDirection).normalize();
+                const rotationAngle = Math.acos(Math.max(-1, Math.min(1, dotProduct)));
                 
-                const cosAngle = Math.cos(angle);
-                const sinAngle = Math.sin(angle);
+                const cosAngle = Math.cos(rotationAngle);
+                const sinAngle = Math.sin(rotationAngle);
+                const oneMinusCos = 1 - cosAngle;
+                
+                // Rodrigues' rotation formula: v' = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ))
+                const crossProduct = rotationAxis.cross(perturbation);
+                const dotProduct2 = rotationAxis.dot(perturbation);
                 
                 rotatedRay = perturbation.multiply(cosAngle)
-                    .add(axis.cross(perturbation).multiply(sinAngle))
-                    .add(axis.multiply(axis.dot(perturbation)).multiply(1 - cosAngle));
+                    .add(crossProduct.multiply(sinAngle))
+                    .add(rotationAxis.multiply(dotProduct2 * oneMinusCos));
             }
             
             rays.push(rotatedRay.normalize());
@@ -344,11 +354,16 @@ class MeshBounceAnalyzer {
             totalIntersections += batchResults.intersections;
             rayChains.push(...batchResults.chains);
             
-            // Merge transition graph
+            // Merge transition graph with better weighting
             for (const [from, to] of batchResults.transitions) {
                 if (!transitionGraph[from]) transitionGraph[from] = {};
                 if (!transitionGraph[from][to]) transitionGraph[from][to] = 0;
                 transitionGraph[from][to]++;
+                
+                // Also add reverse direction for undirected graph
+                if (!transitionGraph[to]) transitionGraph[to] = {};
+                if (!transitionGraph[to][from]) transitionGraph[to][from] = 0;
+                transitionGraph[to][from]++;
             }
             
             // Update progress
@@ -437,8 +452,9 @@ class MeshBounceAnalyzer {
                         
                         // Prepare for next bounce
                         if (bounce < this.options.nBounces - 1) {
-                            currentOrigin = hit.hitPoint.clone();
+                            // Move slightly away from the hit surface to avoid self-intersection
                             const hitNormal = this.faceNormals[hit.faceIndex];
+                            currentOrigin = hit.hitPoint.add(hitNormal.multiply(1e-6));
                             currentDirection = this.reflectRay(currentDirection, hitNormal);
                             previousFace = hit.faceIndex;
                         }
@@ -472,10 +488,16 @@ class MeshBounceAnalyzer {
                 const fromIdx = parseInt(from);
                 const toIdx = parseInt(to);
                 
-                if (!graph[fromIdx].includes(toIdx)) {
-                    graph[fromIdx].push(toIdx);
-                    graph[toIdx].push(fromIdx);
-                    edgeWeights[`${Math.min(fromIdx, toIdx)},${Math.max(fromIdx, toIdx)}`] = weight;
+                if (fromIdx !== toIdx) { // Avoid self-loops
+                    if (!graph[fromIdx].includes(toIdx)) {
+                        graph[fromIdx].push(toIdx);
+                        graph[toIdx].push(fromIdx);
+                        
+                        // Use max weight for undirected edges
+                        const edgeKey = `${Math.min(fromIdx, toIdx)},${Math.max(fromIdx, toIdx)}`;
+                        const existingWeight = edgeWeights[edgeKey] || 0;
+                        edgeWeights[edgeKey] = Math.max(existingWeight, weight);
+                    }
                 }
             }
         }
@@ -496,6 +518,12 @@ class MeshBounceAnalyzer {
         let iterations = 0;
         const maxIterations = 10;
         
+        // Calculate total weight for modularity calculation
+        let totalWeight = 0;
+        for (const weight of Object.values(edgeWeights)) {
+            totalWeight += weight;
+        }
+        
         while (improved && iterations < maxIterations) {
             improved = false;
             
@@ -503,7 +531,7 @@ class MeshBounceAnalyzer {
             for (let nodeId = 0; nodeId < this.faceCount; nodeId++) {
                 const currentCluster = clusters[nodeId];
                 let bestCluster = currentCluster;
-                let bestModularity = this.calculateNodeModularity(nodeId, currentCluster, clusters, graph, edgeWeights);
+                let bestModularity = this.calculateModularityGain(nodeId, currentCluster, clusters, graph, edgeWeights, totalWeight);
                 
                 // Check neighboring clusters
                 const neighborClusters = new Set();
@@ -513,7 +541,7 @@ class MeshBounceAnalyzer {
                 
                 for (const neighborCluster of neighborClusters) {
                     if (neighborCluster !== currentCluster) {
-                        const modularity = this.calculateNodeModularity(nodeId, neighborCluster, clusters, graph, edgeWeights);
+                        const modularity = this.calculateModularityGain(nodeId, neighborCluster, clusters, graph, edgeWeights, totalWeight);
                         if (modularity > bestModularity) {
                             bestModularity = modularity;
                             bestCluster = neighborCluster;
@@ -529,6 +557,38 @@ class MeshBounceAnalyzer {
         }
         
         return clusters;
+    }
+    
+    calculateModularityGain(nodeId, clusterId, clusters, graph, edgeWeights, totalWeight) {
+        let internalWeight = 0;
+        let externalWeight = 0;
+        
+        // Calculate weights for edges connecting to nodes in the target cluster
+        for (const neighbor of graph[nodeId] || []) {
+            const edgeKey = `${Math.min(nodeId, neighbor)},${Math.max(nodeId, neighbor)}`;
+            const weight = edgeWeights[edgeKey] || 1;
+            
+            if (clusters[neighbor] === clusterId) {
+                internalWeight += weight;
+            } else {
+                externalWeight += weight;
+            }
+        }
+        
+        // Calculate cluster size (number of nodes in cluster)
+        let clusterSize = 0;
+        for (const nodeCluster of Object.values(clusters)) {
+            if (nodeCluster === clusterId) {
+                clusterSize++;
+            }
+        }
+        
+        // Simple modularity-like metric: favor internal connections and balanced cluster sizes
+        const nodeWeight = internalWeight + externalWeight;
+        const modularityGain = nodeWeight > 0 ? 
+            (internalWeight / nodeWeight) - (clusterSize / this.faceCount) : 0;
+        
+        return modularityGain;
     }
     
     calculateNodeModularity(nodeId, clusterId, clusters, graph, edgeWeights) {
@@ -702,6 +762,9 @@ function connectMeshAlgorithm() {
         
         // Create analyzer
         const analyzer = new MeshBounceAnalyzer(window.currentMeshData, options);
+        
+        // Store analyzer reference globally for stop functionality
+        window.currentAnalyzer = analyzer;
         
         // Update UI for analysis start
         document.getElementById('analyzeBtn').disabled = true;

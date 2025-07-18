@@ -811,11 +811,15 @@
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 
-                // Center the mesh
+                // Center the mesh initially
                 geometry.computeBoundingBox();
                 const center = new THREE.Vector3();
                 geometry.boundingBox.getCenter(center);
                 mesh.position.sub(center);
+                
+                // Rotate mesh to upright position (many STL files are oriented sideways)
+                // Try rotating 90 degrees around X-axis to make it upright
+                mesh.rotation.x = -Math.PI / 2;
                 
                 // Scale to fit
                 const size = new THREE.Vector3();
@@ -825,7 +829,17 @@
                     mesh.scale.multiplyScalar(2 / maxDim);
                 }
                 
+                // Add mesh to scene temporarily to compute world bounding box
                 this.scene.add(mesh);
+                
+                // Update matrices to get accurate world bounding box
+                mesh.updateMatrixWorld();
+                
+                // Compute world bounding box after all transformations
+                const worldBoundingBox = new THREE.Box3().setFromObject(mesh);
+                
+                // Position the mesh so its bottom sits on the grid (y=0)
+                mesh.position.y = mesh.position.y - worldBoundingBox.min.y;
                 
                 // Hide overlay
                 document.getElementById('viewerOverlay').style.display = 'none';
@@ -960,6 +974,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             let meshVisualization;
             let currentMeshData = null;
+            window.currentMeshData = null;
             
             // Initialize 3D visualization
             function initializeVisualization() {
@@ -998,6 +1013,9 @@
                         
                         // Display mesh info
                         displayMeshInfo(currentMeshData);
+                        
+                        // Make available globally for algorithm integration
+                        window.currentMeshData = currentMeshData;
                         
                         // Render mesh in 3D
                         meshVisualization.displayMesh(currentMeshData);
@@ -1049,8 +1067,58 @@
                 logContent.scrollTop = logContent.scrollHeight;
             }
             
+            // Make utility functions available globally for algorithm integration
+            window.log = log;
+            window.showError = showError;
+            
+            // Load default mesh file
+            function loadDefaultMesh() {
+                log('Loading default mesh file: Bunny.stl');
+                
+                fetch('Bunny.stl')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to load default mesh file');
+                        }
+                        return response.arrayBuffer();
+                    })
+                    .then(arrayBuffer => {
+                        try {
+                            currentMeshData = FileParser.parseSTL(arrayBuffer);
+                            
+                            // Display mesh info
+                            displayMeshInfo(currentMeshData);
+                            
+                            // Make available globally for algorithm integration
+                            window.currentMeshData = currentMeshData;
+                            
+                            // Render mesh in 3D
+                            meshVisualization.displayMesh(currentMeshData);
+                            
+                            // Enable analyze button
+                            document.getElementById('analyzeBtn').disabled = false;
+                            
+                            // Update file label
+                            document.querySelector('.file-input-label').textContent = 'Bunny.stl (default)';
+                            
+                            log(`Loaded default mesh: ${currentMeshData.vertices.length} vertices, ${currentMeshData.faces.length} faces`);
+                            
+                        } catch (error) {
+                            showError(`Failed to parse default mesh file: ${error.message}`);
+                            log(`Error parsing default mesh: ${error.message}`);
+                        }
+                    })
+                    .catch(error => {
+                        log(`Could not load default mesh file: ${error.message}`);
+                        log('You can still manually load a mesh file using the file input above.');
+                    });
+            }
+            
             // Initialize 3D visualization
             initializeVisualization();
+            
+            // Make visualization available globally for algorithm integration
+            window.meshVisualization = meshVisualization;
             
             // Initialize slider values
             updateSliderValues();
@@ -1108,27 +1176,7 @@
                 }
             });
 
-            // Button interactions
-            // document.getElementById('analyzeBtn').addEventListener('click', () => {
-            //     if (!currentMeshData) {
-            //         showError('Please load a mesh file first');
-            //         return;
-            //     }
-                
-            //     log('Analysis started (algorithm not yet implemented)');
-            //     document.getElementById('progressSection').style.display = 'block';
-            //     document.getElementById('progressFill').style.width = '100%';
-            //     document.getElementById('progressText').textContent = 'Analysis complete (demo mode)';
-            //     document.getElementById('resultsSection').style.display = 'block';
-                
-            //     // Demo results
-            //     document.getElementById('totalFaces').textContent = currentMeshData.faces.length.toLocaleString();
-            //     document.getElementById('totalClusters').textContent = '8';
-            //     document.getElementById('rayHits').textContent = '45,678';
-            //     document.getElementById('hitRate').textContent = '87.5%';
-            //     document.getElementById('processingTime').textContent = '2.3s';
-            //     document.getElementById('segmentationQuality').textContent = '92.1%';
-            // });
+            // Button interactions - handled by mesh-algorithm.js integration
 
             document.getElementById('clearBtn').addEventListener('click', () => {
                 fileLabel.textContent = 'Choose file or drag & drop';
@@ -1139,6 +1187,7 @@
                 document.getElementById('viewerOverlay').style.display = 'block';
                 fileInput.value = '';
                 currentMeshData = null;
+                window.currentMeshData = null;
                 
                 // Clear 3D scene - remove both mesh and grid
                 const existingMesh = meshVisualization.scene.getObjectByName('mesh');
@@ -1154,6 +1203,9 @@
                 log('Interface cleared');
             });
 
+            // Load default mesh file (Bunny.stl)
+            loadDefaultMesh();
+            
             // Initialize
             log('Application initialized. Ready to load mesh files.');
         });
