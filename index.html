@@ -229,6 +229,15 @@
             align-items: center;
             gap: 0.5rem;
             animation: pulse 2s infinite;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .scroll-hint:hover {
+            color: #00bfff;
         }
 
         .scroll-hint::after {
@@ -248,6 +257,7 @@
             gap: 3rem; /* Increased from 2rem for more open feeling */
             max-width: 1400px;
             margin: 0 auto;
+            padding-top: 10rem; /* Add padding to adjust scroll position */
         }
 
         .project-card {
@@ -357,6 +367,11 @@
             background-color: #3a3a3a;
         }
 
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             header {
@@ -441,7 +456,7 @@
         <section class="intro">
             <h1>Waffle Ware</h1>
             <div class="subtitle">Interactive Projects & Mathematical Visualizations</div>
-            <div class="scroll-hint">Explore Projects</div>
+            <a href="#projects" class="scroll-hint">Explore Projects</a>
         </section>
 
         <section class="projects-grid" id="projects">
