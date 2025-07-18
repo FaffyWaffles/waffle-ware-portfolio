@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesh Ray-Tracing Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(21, 21, 38, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(66, 153, 225, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(66, 153, 225, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 12px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: #a0a0a0;
+            font-size: 1.1em;
+            font-weight: 400;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .controls-panel {
+            background: rgba(31, 31, 51, 0.8);
+            padding: 28px;
+            border-radius: 12px;
+            border: 1px solid rgba(66, 153, 225, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .viewer-panel {
+            background: rgba(15, 15, 25, 0.9);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(66, 153, 225, 0.15);
+            position: relative;
+        }
+
+        .control-section {
+            margin-bottom: 28px;
+        }
+
+        .control-section h3 {
+            color: #ffffff;
+            margin-bottom: 16px;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #c0c0c0;
+            font-size: 0.9em;
+        }
+
+        .range-input {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .range-input input {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(66, 153, 225, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .range-input input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(66, 153, 225, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .range-input input::-webkit-slider-thumb:hover {
+            background: #3182ce;
+            transform: scale(1.1);
+        }
+
+        .range-input input::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(66, 153, 225, 0.4);
+        }
+
+        .range-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        .value-display {
+            color: #4299e1;
+            font-weight: 600;
+        }
+
+        .file-input {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 16px;
+            background: rgba(66, 153, 225, 0.1);
+            border: 2px dashed rgba(66, 153, 225, 0.3);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #c0c0c0;
+            font-size: 0.9em;
+        }
+
+        .file-input-label:hover {
+            background: rgba(66, 153, 225, 0.2);
+            border-color: rgba(66, 153, 225, 0.5);
+            color: #4299e1;
+        }
+
+        .file-input-label.drag-over {
+            background: rgba(66, 153, 225, 0.3);
+            border-color: rgba(66, 153, 225, 0.6);
+            color: #4299e1;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #3182ce, #2c5282);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(66, 153, 225, 0.2);
+            color: #4299e1;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(66, 153, 225, 0.3);
+            color: #ffffff;
+            border-color: rgba(66, 153, 225, 0.5);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+            color: white;
+            box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c53030, #9c2c2c);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(229, 62, 62, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        .viewer-container {
+            width: 100%;
+            height: 400px;
+            background: #0a0a0f;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(66, 153, 225, 0.2);
+        }
+
+        .viewer-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+
+        .viewer-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .progress-section {
+            margin-top: 32px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(66, 153, 225, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4299e1, #63b3ed);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9em;
+            color: #c0c0c0;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 32px;
+        }
+
+        .results-section h3 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: rgba(31, 31, 51, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(66, 153, 225, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .result-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4299e1;
+            margin-bottom: 8px;
+        }
+
+        .result-label {
+            font-size: 0.9em;
+            color: #a0a0a0;
+            font-weight: 500;
+        }
+
+        .log-section {
+            margin-top: 32px;
+            background: rgba(15, 15, 25, 0.9);
+            padding: 24px;
+            border-radius: 10px;
+            border: 1px solid rgba(66, 153, 225, 0.15);
+        }
+
+        .log-section h3 {
+            color: #ffffff;
+            margin-bottom: 16px;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .log-content {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            color: #c0c0c0;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-radius: 6px;
+            border: 1px solid rgba(66, 153, 225, 0.1);
+        }
+
+        .mesh-info {
+            background: rgba(31, 31, 51, 0.8);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4299e1;
+        }
+
+        .mesh-info h4 {
+            margin-bottom: 12px;
+            color: #4299e1;
+            font-size: 1em;
+            font-weight: 600;
+        }
+
+        .mesh-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 0.9em;
+            color: #c0c0c0;
+        }
+
+        .error-message {
+            background: rgba(229, 62, 62, 0.2);
+            border: 1px solid rgba(229, 62, 62, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            color: #feb2b2;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(66, 153, 225, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(66, 153, 225, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(66, 153, 225, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Mesh Ray-Tracing Analyzer</h1>
+            <p>Advanced mesh segmentation using ray-tracing algorithms</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="main-content">
+            <div class="controls-panel">
+                <div class="control-section">
+                    <h3>Mesh Input</h3>
+                    <div class="input-group">
+                        <label>Upload STL/OBJ file:</label>
+                        <div class="file-input">
+                            <input type="file" id="meshFile" accept=".stl,.obj" />
+                            <label for="meshFile" class="file-input-label">
+                                Choose file or drag & drop
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>Ray Parameters</h3>
+                    <div class="input-group">
+                        <label>Bounces:</label>
+                        <div class="range-input">
+                            <input type="range" id="bounces" min="1" max="10" value="3" />
+                            <div class="range-display">
+                                <span>1</span>
+                                <span class="value-display" id="bouncesVal">3</span>
+                                <span>10</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Additional Rays:</label>
+                        <div class="range-input">
+                            <input type="range" id="additionalRays" min="1" max="50" value="10" />
+                            <div class="range-display">
+                                <span>1</span>
+                                <span class="value-display" id="additionalRaysVal">10</span>
+                                <span>50</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Cone Angle (degrees):</label>
+                        <div class="range-input">
+                            <input type="range" id="coneAngle" min="5" max="90" value="30" />
+                            <div class="range-display">
+                                <span>5°</span>
+                                <span class="value-display" id="coneAngleVal">30°</span>
+                                <span>90°</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>Processing Options</h3>
+                    <div class="input-group">
+                        <label>Batch Size:</label>
+                        <div class="range-input">
+                            <input type="range" id="batchSize" min="10" max="1000" value="100" />
+                            <div class="range-display">
+                                <span>10</span>
+                                <span class="value-display" id="batchSizeVal">100</span>
+                                <span>1000</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Resolution:</label>
+                        <div class="range-input">
+                            <input type="range" id="resolution" min="0.1" max="5.0" step="0.1" value="1.0" />
+                            <div class="range-display">
+                                <span>0.1</span>
+                                <span class="value-display" id="resolutionVal">1.0</span>
+                                <span>5.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Min Cluster Size:</label>
+                        <div class="range-input">
+                            <input type="range" id="minClusterSize" min="1" max="50" value="10" />
+                            <div class="range-display">
+                                <span>1</span>
+                                <span class="value-display" id="minClusterSizeVal">10</span>
+                                <span>50</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary btn-full" id="analyzeBtn" disabled>
+                        Analyze Mesh
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" disabled>Stop</button>
+                    <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                </div>
+            </div>
+
+            <div class="viewer-panel">
+                <div class="mesh-info" id="meshInfo" style="display: none;">
+                    <h4>Mesh Information</h4>
+                    <div class="mesh-stats">
+                        <div>Vertices: <span id="vertexCount">0</span></div>
+                        <div>Faces: <span id="faceCount">0</span></div>
+                        <div>Surface Area: <span id="surfaceArea">0</span></div>
+                        <div>Volume: <span id="volume">0</span></div>
+                    </div>
+                </div>
+                
+                <div class="viewer-container">
+                    <canvas id="meshCanvas"></canvas>
+                    <div class="viewer-overlay" id="viewerOverlay">
+                        <div>Upload a mesh file to begin analysis</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Ready</div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <h3>Analysis Results</h3>
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-value" id="totalFaces">0</div>
+                    <div class="result-label">Total Faces</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-value" id="totalClusters">0</div>
+                    <div class="result-label">Clusters Found</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-value" id="rayHits">0</div>
+                    <div class="result-label">Ray Hits</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-value" id="hitRate">0%</div>
+                    <div class="result-label">Hit Rate</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-value" id="processingTime">0s</div>
+                    <div class="result-label">Processing Time</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-value" id="segmentationQuality">0%</div>
+                    <div class="result-label">Segmentation Quality</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <h3>Processing Log</h3>
+            <div class="log-content" id="logContent">Ready to load mesh files...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="mesh-algorithm.js"></script>
+    <script>
+        // === 3D MESH VISUALIZATION ===
+        
+        class MeshVisualization {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: this.canvas, 
+                    antialias: true,
+                    alpha: true
+                });
+                
+                this.setupScene();
+                this.setupControls();
+                this.animate();
+            }
+            
+            setupScene() {
+                // Set proper canvas size and aspect ratio
+                const rect = this.canvas.getBoundingClientRect();
+                this.renderer.setSize(rect.width, rect.height);
+                this.camera.aspect = rect.width / rect.height;
+                this.camera.updateProjectionMatrix();
+                
+                this.renderer.setClearColor(0x0a0a0f, 1);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Lighting with blue tones
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0x4299e1, 0.8);
+                directionalLight.position.set(5, 5, 5);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                this.scene.add(directionalLight);
+                
+                const directionalLight2 = new THREE.DirectionalLight(0x63b3ed, 0.3);
+                directionalLight2.position.set(-5, 3, -5);
+                this.scene.add(directionalLight2);
+                
+                // Camera position
+                this.camera.position.set(3, 3, 3);
+                this.camera.lookAt(0, 0, 0);
+                
+                // Don't add grid here - it will be added when mesh is loaded
+            }
+            
+            setupControls() {
+                let isMouseDown = false;
+                let mouseX = 0;
+                let mouseY = 0;
+                
+                this.canvas.addEventListener('mousedown', (event) => {
+                    isMouseDown = true;
+                    mouseX = event.clientX;
+                    mouseY = event.clientY;
+                });
+                
+                this.canvas.addEventListener('mouseup', () => {
+                    isMouseDown = false;
+                });
+                
+                this.canvas.addEventListener('mousemove', (event) => {
+                    if (!isMouseDown) return;
+                    
+                    const deltaX = event.clientX - mouseX;
+                    const deltaY = event.clientY - mouseY;
+                    
+                    const spherical = new THREE.Spherical();
+                    spherical.setFromVector3(this.camera.position);
+                    spherical.theta -= deltaX * 0.01;
+                    spherical.phi -= deltaY * 0.01; // Reversed this line
+                    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                    
+                    this.camera.position.setFromSpherical(spherical);
+                    this.camera.lookAt(0, 0, 0);
+                    
+                    mouseX = event.clientX;
+                    mouseY = event.clientY;
+                });
+                
+                this.canvas.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    const spherical = new THREE.Spherical();
+                    spherical.setFromVector3(this.camera.position);
+                    spherical.radius *= (1 + event.deltaY * 0.001);
+                    spherical.radius = Math.max(0.5, Math.min(20, spherical.radius));
+                    
+                    this.camera.position.setFromSpherical(spherical);
+                    this.camera.lookAt(0, 0, 0);
+                });
+                
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.camera.aspect = rect.width / rect.height;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(rect.width, rect.height);
+                });
+            }
+            
+            displayMesh(meshData, clusters = null) {
+                // Remove existing mesh
+                const existingMesh = this.scene.getObjectByName('mesh');
+                if (existingMesh) {
+                    this.scene.remove(existingMesh);
+                }
+                
+                // Remove existing grid
+                const existingGrid = this.scene.getObjectByName('grid');
+                if (existingGrid) {
+                    this.scene.remove(existingGrid);
+                }
+                
+                // Add grid now that we have a mesh
+                const gridHelper = new THREE.GridHelper(10, 20, 0x2a2a3e, 0x1a1a2e);
+                gridHelper.name = 'grid';
+                gridHelper.position.set(0, 0, 0); // Ensure it's centered
+                this.scene.add(gridHelper);
+                
+                // Create geometry
+                const geometry = new THREE.BufferGeometry();
+                
+                const vertices = [];
+                const indices = [];
+                
+                // Add vertices
+                for (const vertex of meshData.vertices) {
+                    vertices.push(vertex[0], vertex[1], vertex[2]);
+                }
+                
+                // Add faces
+                for (const face of meshData.faces) {
+                    indices.push(face[0], face[1], face[2]);
+                }
+                
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                geometry.setIndex(indices);
+                geometry.computeVertexNormals();
+                
+                // Apply clustering colors if available
+                if (clusters) {
+                    const faceColors = [];
+                    const clusterIds = Object.values(clusters);
+                    const numClusters = Math.max(...clusterIds) + 1;
+                    
+                    // Generate cluster colors
+                    const clusterColors = [];
+                    for (let i = 0; i < numClusters; i++) {
+                        const hue = (i / numClusters) * 360;
+                        const color = new THREE.Color().setHSL(hue / 360, 0.7, 0.6);
+                        clusterColors.push(color);
+                    }
+                    
+                    // Assign colors to faces
+                    for (let faceIdx = 0; faceIdx < meshData.faces.length; faceIdx++) {
+                        const clusterId = clusters[faceIdx] || 0;
+                        const color = clusterColors[clusterId % clusterColors.length];
+                        
+                        // Apply color to all three vertices of the face
+                        for (let i = 0; i < 3; i++) {
+                            faceColors.push(color.r, color.g, color.b);
+                        }
+                    }
+                    
+                    geometry.setAttribute('color', new THREE.Float32BufferAttribute(faceColors, 3));
+                }
+                
+                // Create material
+                const material = new THREE.MeshPhongMaterial({
+                    vertexColors: clusters ? true : false,
+                    color: clusters ? 0xffffff : 0x4299e1,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.9,
+                    side: THREE.DoubleSide
+                });
+                
+                // Create mesh
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.name = 'mesh';
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                
+                // Center the mesh
+                geometry.computeBoundingBox();
+                const center = new THREE.Vector3();
+                geometry.boundingBox.getCenter(center);
+                mesh.position.sub(center);
+                
+                // Scale to fit
+                const size = new THREE.Vector3();
+                geometry.boundingBox.getSize(size);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                if (maxDim > 0) {
+                    mesh.scale.multiplyScalar(2 / maxDim);
+                }
+                
+                this.scene.add(mesh);
+                
+                // Hide overlay
+                document.getElementById('viewerOverlay').style.display = 'none';
+                
+                return mesh;
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+        
+        // === FILE PARSING ===
+        
+        class FileParser {
+            static parseSTL(arrayBuffer) {
+                const dataView = new DataView(arrayBuffer);
+                const vertices = [];
+                const faces = [];
+                const vertexMap = new Map();
+                let vertexIndex = 0;
+                
+                // Skip header (80 bytes)
+                const numTriangles = dataView.getUint32(80, true);
+                
+                for (let i = 0; i < numTriangles; i++) {
+                    const offset = 84 + i * 50;
+                    const face = [];
+                    
+                    // Read 3 vertices
+                    for (let j = 0; j < 3; j++) {
+                        const x = dataView.getFloat32(offset + 12 + j * 12, true);
+                        const y = dataView.getFloat32(offset + 12 + j * 12 + 4, true);
+                        const z = dataView.getFloat32(offset + 12 + j * 12 + 8, true);
+                        
+                        const vertexKey = `${x.toFixed(6)},${y.toFixed(6)},${z.toFixed(6)}`;
+                        
+                        if (!vertexMap.has(vertexKey)) {
+                            vertexMap.set(vertexKey, vertexIndex);
+                            vertices.push([x, y, z]);
+                            vertexIndex++;
+                        }
+                        
+                        face.push(vertexMap.get(vertexKey));
+                    }
+                    
+                    faces.push(face);
+                }
+                
+                return { vertices, faces };
+            }
+            
+            static parseOBJ(text) {
+                const lines = text.split('\n');
+                const vertices = [];
+                const faces = [];
+                
+                for (const line of lines) {
+                    const parts = line.trim().split(/\s+/);
+                    
+                    if (parts[0] === 'v') {
+                        // Vertex
+                        const x = parseFloat(parts[1]);
+                        const y = parseFloat(parts[2]);
+                        const z = parseFloat(parts[3]);
+                        vertices.push([x, y, z]);
+                    } else if (parts[0] === 'f') {
+                        // Face
+                        const face = [];
+                        for (let i = 1; i < parts.length; i++) {
+                            const vertexIndex = parseInt(parts[i].split('/')[0]) - 1; // OBJ is 1-indexed
+                            face.push(vertexIndex);
+                        }
+                        
+                        // Triangulate if necessary
+                        if (face.length === 3) {
+                            faces.push(face);
+                        } else if (face.length === 4) {
+                            // Split quad into two triangles
+                            faces.push([face[0], face[1], face[2]]);
+                            faces.push([face[0], face[2], face[3]]);
+                        }
+                    }
+                }
+                
+                return { vertices, faces };
+            }
+        }
+        
+        // === MESH UTILITIES ===
+        
+        class MeshUtils {
+            static calculateMeshStats(meshData) {
+                const { vertices, faces } = meshData;
+                let surfaceArea = 0;
+                let volume = 0;
+                
+                for (const face of faces) {
+                    const v0 = vertices[face[0]];
+                    const v1 = vertices[face[1]];
+                    const v2 = vertices[face[2]];
+                    
+                    // Calculate face area using cross product
+                    const edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+                    const edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+                    
+                    const cross = [
+                        edge1[1] * edge2[2] - edge1[2] * edge2[1],
+                        edge1[2] * edge2[0] - edge1[0] * edge2[2],
+                        edge1[0] * edge2[1] - edge1[1] * edge2[0]
+                    ];
+                    
+                    const crossMagnitude = Math.sqrt(cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]);
+                    surfaceArea += crossMagnitude * 0.5;
+                    
+                    // Volume contribution (assuming closed mesh)
+                    volume += (v0[0] * cross[0] + v0[1] * cross[1] + v0[2] * cross[2]) / 6;
+                }
+                
+                return {
+                    vertices: vertices.length,
+                    faces: faces.length,
+                    surfaceArea: surfaceArea,
+                    volume: Math.abs(volume)
+                };
+            }
+        }
+        
+        // === MAIN APPLICATION ===
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            let meshVisualization;
+            let currentMeshData = null;
+            
+            // Initialize 3D visualization
+            function initializeVisualization() {
+                meshVisualization = new MeshVisualization('meshCanvas');
+                log('3D visualization initialized');
+            }
+            
+            // Display mesh info
+            function displayMeshInfo(meshData) {
+                const stats = MeshUtils.calculateMeshStats(meshData);
+                
+                document.getElementById('vertexCount').textContent = stats.vertices.toLocaleString();
+                document.getElementById('faceCount').textContent = stats.faces.toLocaleString();
+                document.getElementById('surfaceArea').textContent = stats.surfaceArea.toFixed(2);
+                document.getElementById('volume').textContent = stats.volume.toFixed(2);
+                
+                document.getElementById('meshInfo').style.display = 'block';
+            }
+            
+            // Load and parse mesh file
+            function loadMeshFile(file) {
+                log(`Loading mesh file: ${file.name}`);
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target.result;
+                        
+                        if (file.name.toLowerCase().endsWith('.stl')) {
+                            currentMeshData = FileParser.parseSTL(content);
+                        } else if (file.name.toLowerCase().endsWith('.obj')) {
+                            currentMeshData = FileParser.parseOBJ(content);
+                        } else {
+                            throw new Error('Unsupported file format. Please use STL or OBJ files.');
+                        }
+                        
+                        // Display mesh info
+                        displayMeshInfo(currentMeshData);
+                        
+                        // Render mesh in 3D
+                        meshVisualization.displayMesh(currentMeshData);
+                        
+                        // Enable analyze button
+                        document.getElementById('analyzeBtn').disabled = false;
+                        
+                        log(`Loaded mesh: ${currentMeshData.vertices.length} vertices, ${currentMeshData.faces.length} faces`);
+                        
+                    } catch (error) {
+                        showError(`Failed to load mesh file: ${error.message}`);
+                        log(`Error loading mesh file: ${error.message}`);
+                    }
+                };
+                
+                if (file.name.toLowerCase().endsWith('.stl')) {
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            }
+            
+            // Show error message
+            function showError(message) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Update slider values
+            function updateSliderValues() {
+                document.getElementById('bouncesVal').textContent = document.getElementById('bounces').value;
+                document.getElementById('additionalRaysVal').textContent = document.getElementById('additionalRays').value;
+                document.getElementById('coneAngleVal').textContent = document.getElementById('coneAngle').value + '°';
+                document.getElementById('batchSizeVal').textContent = document.getElementById('batchSize').value;
+                document.getElementById('resolutionVal').textContent = document.getElementById('resolution').value;
+                document.getElementById('minClusterSizeVal').textContent = document.getElementById('minClusterSize').value;
+            }
+
+            // Logging function
+            function log(message) {
+                const logContent = document.getElementById('logContent');
+                const timestamp = new Date().toLocaleTimeString();
+                logContent.textContent += `[${timestamp}] ${message}\n`;
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+            
+            // Initialize 3D visualization
+            initializeVisualization();
+            
+            // Initialize slider values
+            updateSliderValues();
+
+            // Add event listeners for sliders
+            const sliders = ['bounces', 'additionalRays', 'coneAngle', 'batchSize', 'resolution', 'minClusterSize'];
+            sliders.forEach(id => {
+                document.getElementById(id).addEventListener('input', updateSliderValues);
+            });
+
+            // File input handling
+            const fileInput = document.getElementById('meshFile');
+            const fileLabel = document.querySelector('.file-input-label');
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    const fileName = file.name;
+                    fileLabel.textContent = fileName;
+                    
+                    // Load and render the mesh
+                    loadMeshFile(file);
+                }
+            });
+
+            // Drag and drop functionality
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileLabel.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            fileLabel.addEventListener('dragenter', () => {
+                fileLabel.classList.add('drag-over');
+            });
+
+            fileLabel.addEventListener('dragleave', () => {
+                fileLabel.classList.remove('drag-over');
+            });
+
+            fileLabel.addEventListener('drop', (e) => {
+                fileLabel.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    fileInput.files = files;
+                    const fileName = file.name;
+                    fileLabel.textContent = fileName;
+                    
+                    // Load and render the mesh
+                    loadMeshFile(file);
+                }
+            });
+
+            // Button interactions
+            // document.getElementById('analyzeBtn').addEventListener('click', () => {
+            //     if (!currentMeshData) {
+            //         showError('Please load a mesh file first');
+            //         return;
+            //     }
+                
+            //     log('Analysis started (algorithm not yet implemented)');
+            //     document.getElementById('progressSection').style.display = 'block';
+            //     document.getElementById('progressFill').style.width = '100%';
+            //     document.getElementById('progressText').textContent = 'Analysis complete (demo mode)';
+            //     document.getElementById('resultsSection').style.display = 'block';
+                
+            //     // Demo results
+            //     document.getElementById('totalFaces').textContent = currentMeshData.faces.length.toLocaleString();
+            //     document.getElementById('totalClusters').textContent = '8';
+            //     document.getElementById('rayHits').textContent = '45,678';
+            //     document.getElementById('hitRate').textContent = '87.5%';
+            //     document.getElementById('processingTime').textContent = '2.3s';
+            //     document.getElementById('segmentationQuality').textContent = '92.1%';
+            // });
+
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                fileLabel.textContent = 'Choose file or drag & drop';
+                document.getElementById('analyzeBtn').disabled = true;
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('resultsSection').style.display = 'none';
+                document.getElementById('meshInfo').style.display = 'none';
+                document.getElementById('viewerOverlay').style.display = 'block';
+                fileInput.value = '';
+                currentMeshData = null;
+                
+                // Clear 3D scene - remove both mesh and grid
+                const existingMesh = meshVisualization.scene.getObjectByName('mesh');
+                if (existingMesh) {
+                    meshVisualization.scene.remove(existingMesh);
+                }
+                
+                const existingGrid = meshVisualization.scene.getObjectByName('grid');
+                if (existingGrid) {
+                    meshVisualization.scene.remove(existingGrid);
+                }
+                
+                log('Interface cleared');
+            });
+
+            // Initialize
+            log('Application initialized. Ready to load mesh files.');
+        });
+    </script>
+</body>
+</html>
