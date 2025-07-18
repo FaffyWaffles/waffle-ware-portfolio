@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG to WAV Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #fafafa;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background: #e6f3ff;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .control-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: bold;
+        }
+        input[type="range"], input[type="number"] {
+            width: 200px;
+            margin-left: 10px;
+        }
+        .preview {
+            margin: 20px 0;
+            text-align: center;
+        }
+        #svgPreview {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            background: white;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SVG to WAV Converter</h1>
+        <p>Convert SVG files to WAV audio for oscilloscope X-Y mode display</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>Drop your SVG file here or click to browse</p>
+            <input type="file" id="fileInput" accept=".svg" />
+            <button class="btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="sampleRate">Sample Rate:</label>
+                <select id="sampleRate">
+                    <option value="44100">44.1 kHz</option>
+                    <option value="48000">48 kHz</option>
+                    <option value="96000">96 kHz</option>
+                    <option value="192000">192 kHz</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="duration">Duration (seconds):</label>
+                <input type="number" id="duration" value="5" min="1" max="60" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label for="amplitude">Amplitude:</label>
+                <input type="range" id="amplitude" min="0.1" max="1" step="0.1" value="0.8">
+                <span id="amplitudeValue">0.8</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="smoothing">Smoothing:</label>
+                <input type="range" id="smoothing" min="1" max="10" step="1" value="3">
+                <span id="smoothingValue">3</span>
+            </div>
+        </div>
+        
+        <div class="preview">
+            <div id="svgPreview"></div>
+        </div>
+        
+        <div>
+            <button class="btn" id="convertBtn" onclick="convertSVG()" disabled>Convert to WAV</button>
+            <button class="btn" id="downloadBtn" onclick="downloadWAV()" disabled>Download WAV</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        let svgData = null;
+        let wavBlob = null;
+        let pathPoints = [];
+
+        // File upload handling
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const convertBtn = document.getElementById('convertBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
+        const svgPreview = document.getElementById('svgPreview');
+
+        // Update value displays
+        document.getElementById('amplitude').addEventListener('input', (e) => {
+            document.getElementById('amplitudeValue').textContent = e.target.value;
+        });
+
+        document.getElementById('smoothing').addEventListener('input', (e) => {
+            document.getElementById('smoothingValue').textContent = e.target.value;
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.type.includes('svg')) {
+                showStatus('Please select a valid SVG file.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                svgData = e.target.result;
+                showStatus('SVG loaded successfully!', 'success');
+                previewSVG();
+                convertBtn.disabled = false;
+            };
+            reader.readAsText(file);
+        }
+
+        function previewSVG() {
+            svgPreview.innerHTML = svgData;
+            const svg = svgPreview.querySelector('svg');
+            if (svg) {
+                svg.style.maxWidth = '100%';
+                svg.style.height = 'auto';
+            }
+        }
+
+        function showStatus(message, type) {
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function parseSVGPaths(svgContent) {
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+            const paths = svgDoc.querySelectorAll('path, line, polyline, polygon, circle, ellipse, rect');
+            
+            let allPoints = [];
+            
+            paths.forEach(path => {
+                const points = extractPathPoints(path);
+                allPoints = allPoints.concat(points);
+            });
+            
+            return allPoints;
+        }
+
+        function extractPathPoints(element) {
+            const points = [];
+            
+            if (element.tagName === 'path') {
+                const d = element.getAttribute('d');
+                if (d) {
+                    const pathData = parsePath(d);
+                    points.push(...pathData);
+                }
+            } else if (element.tagName === 'line') {
+                const x1 = parseFloat(element.getAttribute('x1') || 0);
+                const y1 = parseFloat(element.getAttribute('y1') || 0);
+                const x2 = parseFloat(element.getAttribute('x2') || 0);
+                const y2 = parseFloat(element.getAttribute('y2') || 0);
+                points.push({x: x1, y: y1}, {x: x2, y: y2});
+            } else if (element.tagName === 'circle') {
+                const cx = parseFloat(element.getAttribute('cx') || 0);
+                const cy = parseFloat(element.getAttribute('cy') || 0);
+                const r = parseFloat(element.getAttribute('r') || 0);
+                
+                // Generate circle points
+                for (let i = 0; i <= 360; i += 5) {
+                    const angle = (i * Math.PI) / 180;
+                    points.push({
+                        x: cx + r * Math.cos(angle),
+                        y: cy + r * Math.sin(angle)
+                    });
+                }
+            }
+            // Add more shape types as needed
+            
+            return points;
+        }
+
+        function parsePath(d) {
+            const points = [];
+            let currentX = 0, currentY = 0;
+            
+            // Simple path parser - handles basic M, L, C commands
+            const commands = d.match(/[MmLlCcSsQqTtAaZz][^MmLlCcSsQqTtAaZz]*/g);
+            
+            if (commands) {
+                commands.forEach(cmd => {
+                    const type = cmd[0];
+                    const coords = cmd.slice(1).trim().split(/[\s,]+/).filter(n => n).map(Number);
+                    
+                    switch (type.toLowerCase()) {
+                        case 'm':
+                            if (type === 'M') {
+                                currentX = coords[0];
+                                currentY = coords[1];
+                            } else {
+                                currentX += coords[0];
+                                currentY += coords[1];
+                            }
+                            points.push({x: currentX, y: currentY});
+                            break;
+                        case 'l':
+                            for (let i = 0; i < coords.length; i += 2) {
+                                if (type === 'L') {
+                                    currentX = coords[i];
+                                    currentY = coords[i + 1];
+                                } else {
+                                    currentX += coords[i];
+                                    currentY += coords[i + 1];
+                                }
+                                points.push({x: currentX, y: currentY});
+                            }
+                            break;
+                        case 'c':
+                            for (let i = 0; i < coords.length; i += 6) {
+                                // Simplified cubic bezier - just take end point
+                                if (type === 'C') {
+                                    currentX = coords[i + 4];
+                                    currentY = coords[i + 5];
+                                } else {
+                                    currentX += coords[i + 4];
+                                    currentY += coords[i + 5];
+                                }
+                                points.push({x: currentX, y: currentY});
+                            }
+                            break;
+                    }
+                });
+            }
+            
+            return points;
+        }
+
+        function normalizePoints(points) {
+            if (points.length === 0) return [];
+            
+            // Find bounds
+            let minX = Math.min(...points.map(p => p.x));
+            let maxX = Math.max(...points.map(p => p.x));
+            let minY = Math.min(...points.map(p => p.y));
+            let maxY = Math.max(...points.map(p => p.y));
+            
+            const rangeX = maxX - minX;
+            const rangeY = maxY - minY;
+            
+            // Normalize to -1 to 1 range
+            return points.map(p => ({
+                x: rangeX > 0 ? ((p.x - minX) / rangeX) * 2 - 1 : 0,
+                y: rangeY > 0 ? ((p.y - minY) / rangeY) * 2 - 1 : 0
+            }));
+        }
+
+        function smoothPoints(points, factor) {
+            if (points.length < 3 || factor <= 1) return points;
+            
+            const smoothed = [points[0]];
+            
+            for (let i = 1; i < points.length - 1; i++) {
+                let avgX = 0, avgY = 0;
+                let count = 0;
+                
+                for (let j = Math.max(0, i - factor); j <= Math.min(points.length - 1, i + factor); j++) {
+                    avgX += points[j].x;
+                    avgY += points[j].y;
+                    count++;
+                }
+                
+                smoothed.push({
+                    x: avgX / count,
+                    y: avgY / count
+                });
+            }
+            
+            smoothed.push(points[points.length - 1]);
+            return smoothed;
+        }
+
+        function convertSVG() {
+            if (!svgData) {
+                showStatus('Please load an SVG file first.', 'error');
+                return;
+            }
+
+            showStatus('Converting SVG to WAV...', 'info');
+            
+            try {
+                // Parse SVG paths
+                pathPoints = parseSVGPaths(svgData);
+                
+                if (pathPoints.length === 0) {
+                    showStatus('No drawable paths found in SVG.', 'error');
+                    return;
+                }
+                
+                // Normalize points
+                pathPoints = normalizePoints(pathPoints);
+                
+                // Apply smoothing
+                const smoothingFactor = parseInt(document.getElementById('smoothing').value);
+                pathPoints = smoothPoints(pathPoints, smoothingFactor);
+                
+                // Generate WAV
+                generateWAV();
+                
+            } catch (error) {
+                showStatus(`Error processing SVG: ${error.message}`, 'error');
+            }
+        }
+
+        function generateWAV() {
+            const sampleRate = parseInt(document.getElementById('sampleRate').value);
+            const duration = parseFloat(document.getElementById('duration').value);
+            const amplitude = parseFloat(document.getElementById('amplitude').value);
+            
+            const numSamples = Math.floor(sampleRate * duration);
+            const buffer = new ArrayBuffer(44 + numSamples * 4); // 2 channels, 16-bit each
+            const view = new DataView(buffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + numSamples * 4, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM
+            view.setUint16(22, 2, true); // Stereo
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 4, true);
+            view.setUint16(32, 4, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, numSamples * 4, true);
+            
+            // Generate audio data
+            for (let i = 0; i < numSamples; i++) {
+                const progress = i / (numSamples - 1);
+                const pointIndex = Math.floor(progress * (pathPoints.length - 1));
+                const point = pathPoints[pointIndex] || {x: 0, y: 0};
+                
+                // Convert to 16-bit signed integers
+                const leftSample = Math.floor(point.x * amplitude * 32767);
+                const rightSample = Math.floor(point.y * amplitude * 32767);
+                
+                // Clamp values
+                const clampedLeft = Math.max(-32768, Math.min(32767, leftSample));
+                const clampedRight = Math.max(-32768, Math.min(32767, rightSample));
+                
+                view.setInt16(44 + i * 4, clampedLeft, true);
+                view.setInt16(44 + i * 4 + 2, clampedRight, true);
+            }
+            
+            wavBlob = new Blob([buffer], {type: 'audio/wav'});
+            downloadBtn.disabled = false;
+            showStatus('Conversion complete! Ready to download.', 'success');
+        }
+
+        function downloadWAV() {
+            if (!wavBlob) {
+                showStatus('No WAV file ready for download.', 'error');
+                return;
+            }
+            
+            const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'oscilloscope_xy.wav';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showStatus('WAV file downloaded!', 'success');
+        }
+    </script>
+</body>
+</html>

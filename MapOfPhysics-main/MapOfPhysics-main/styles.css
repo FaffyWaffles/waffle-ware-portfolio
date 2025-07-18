@@ -1,0 +1,16 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    color: #333;
+}
+
+.latex {
+    font-size: 12px;
+}
+
+.selected {
+    stroke: orange;
+    stroke-width: 3px;
+}
