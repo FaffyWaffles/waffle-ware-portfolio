@@ -290,6 +290,14 @@
                         <input type="checkbox" class="checkbox" id="showGridCheck" checked>
                         <label id="gridLabel">Polar Grid</label>
                     </div>
+                    <div class="checkbox-container" id="showPseudo3DContainer" style="display: none;">
+                        <input type="checkbox" class="checkbox" id="showPseudo3DCheck">
+                        <label>Pseudo3D</label>
+                    </div>
+                    <div class="checkbox-container" id="showReal3DContainer" style="display: none;">
+                        <input type="checkbox" class="checkbox" id="showReal3DCheck">
+                        <label>3D Model</label>
+                    </div>
                 </div>
                 
                 <div class="info-panel">
@@ -318,6 +326,16 @@
         let currentMode = 0;
         let secondMode = 0;
         let systemType = 'circular';
+        let showPseudo3D = false;
+        let showReal3D = false;
+
+        // 3D Camera variables
+        let camera = {
+            x: 0, y: 0, z: 5,
+            rotX: 0.3, rotY: 0,
+            isDragging: false,
+            lastMouseX: 0, lastMouseY: 0
+        };
         
         const circularShapeNames = ["Breathing circle", "Dipole", "Quadrupole", "Sextupole", "Octupole", "Decapole", "Dodecapole"];
         const linearShapeNames = ["Fundamental", "1st Overtone", "2nd Overtone", "3rd Overtone", "4th Overtone", "5th Overtone", "6th Overtone"];
@@ -378,6 +396,19 @@
                 document.getElementById('nodesLabel').textContent = 'Show Nodal Lines';
                 document.getElementById('gridLabel').textContent = 'Polar Grid';
                 document.getElementById('secondModeContainer').style.display = 'block';
+                document.getElementById('showPseudo3DContainer').style.display = 'block';
+                document.getElementById('showReal3DContainer').style.display = 'block';
+            }
+
+            // Hide 3D toggles for non-Bessel modes
+            if (type !== 'bessel') {
+                document.getElementById('showPseudo3DContainer').style.display = 'none';
+                document.getElementById('showReal3DContainer').style.display = 'none';
+                document.getElementById('showPseudo3DCheck').checked = false;
+                document.getElementById('showReal3DCheck').checked = false;
+                showPseudo3D = false;
+                showReal3D = false;
+                updateCanvasCursor();
             }
             updateModeInfo();
         }
@@ -406,7 +437,11 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (systemType === 'circular') drawCircularMembrane();
             else if (systemType === 'linear') drawLinearString();
-            else if (systemType === 'bessel') drawBesselMembrane();
+            else if (systemType === 'bessel') {
+                if (showReal3D) drawBesselReal3D();
+                else if (showPseudo3D) drawBesselPseudo3D();
+                else drawBesselMembrane();
+            }
         }
         
         function drawCircularMembrane() {
@@ -645,7 +680,292 @@
                 }
             }
         }
-        
+
+        function drawBesselPseudo3D() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = Math.min(canvas.width, canvas.height) * 0.35;
+            const temporalPart = Math.cos(time * speed);
+
+            if (currentMode >= besselZeros.length || secondMode >= besselZeros[currentMode].length) return;
+            const k = besselZeros[currentMode][secondMode];
+
+            // Draw 3D-like surface using lines
+            const gridSize = 40;
+            const heightScale = amplitude * 30;
+
+            // Draw radial lines
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 191, 255, 0.6)';
+                ctx.lineWidth = 1;
+
+                for (let r = 0; r <= maxRadius; r += maxRadius / gridSize) {
+                    const kr = k * r / maxRadius;
+                    const radialPart = besselJ(currentMode, kr);
+                    const angularPart = Math.cos(currentMode * angle);
+                    const displacement = radialPart * angularPart * temporalPart * heightScale;
+
+                    const x = centerX + (r + displacement * 0.3) * Math.cos(angle);
+                    const y = centerY + (r + displacement * 0.3) * Math.sin(angle) - displacement * 0.5;
+
+                    if (r === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            // Draw concentric circles
+            for (let r = maxRadius * 0.2; r <= maxRadius; r += maxRadius * 0.15) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 191, 255, 0.4)';
+                ctx.lineWidth = 1;
+
+                for (let angle = 0; angle <= Math.PI * 2.1; angle += 0.1) {
+                    const kr = k * r / maxRadius;
+                    const radialPart = besselJ(currentMode, kr);
+                    const angularPart = Math.cos(currentMode * angle);
+                    const displacement = radialPart * angularPart * temporalPart * heightScale;
+
+                    const x = centerX + (r + displacement * 0.3) * Math.cos(angle);
+                    const y = centerY + (r + displacement * 0.3) * Math.sin(angle) - displacement * 0.5;
+
+                    if (angle === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            // Show grid if enabled
+            if (document.getElementById('showGridCheck').checked) {
+                drawPolarGrid(centerX, centerY, maxRadius * 1.2);
+            }
+
+            // Show nodal lines if enabled
+            if (document.getElementById('showNodesCheck').checked) {
+                drawBesselNodes(centerX, centerY, maxRadius, currentMode, secondMode);
+            }
+        }
+
+        // 3D Math utilities
+        function rotatePoint3D(x, y, z, rotX, rotY) {
+            // Rotate around X axis
+            const cosX = Math.cos(rotX);
+            const sinX = Math.sin(rotX);
+            const y1 = y * cosX - z * sinX;
+            const z1 = y * sinX + z * cosX;
+
+            // Rotate around Y axis
+            const cosY = Math.cos(rotY);
+            const sinY = Math.sin(rotY);
+            const x2 = x * cosY + z1 * sinY;
+            const z2 = -x * sinY + z1 * cosY;
+
+            return { x: x2, y: y1, z: z2 };
+        }
+
+        function project3D(x, y, z) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const fov = 300;
+
+            const perspective = fov / (z + camera.z);
+            return {
+                x: centerX + (x - camera.x) * perspective,
+                y: centerY + (y - camera.y) * perspective
+            };
+        }
+
+        function drawBesselReal3D() {
+            const temporalPart = Math.cos(time * speed);
+            if (currentMode >= besselZeros.length || secondMode >= besselZeros[currentMode].length) return;
+            const k = besselZeros[currentMode][secondMode];
+
+            const gridSize = 30;
+            const maxRadius = 2;
+            const heightScale = amplitude * 0.5;
+
+            // Create vertices for the membrane surface
+            const vertices = [];
+            for (let i = 0; i <= gridSize; i++) {
+                for (let j = 0; j <= gridSize; j++) {
+                    const u = (i / gridSize) * Math.PI * 2; // angle
+                    const v = (j / gridSize) * maxRadius;    // radius
+
+                    const x = v * Math.cos(u);
+                    const y = v * Math.sin(u);
+
+                    if (v <= maxRadius) {
+                        const kr = k * v / maxRadius;
+                        const radialPart = besselJ(currentMode, kr);
+                        const angularPart = Math.cos(currentMode * u);
+                        const displacement = radialPart * angularPart * temporalPart * heightScale;
+                        const z = displacement;
+
+                        const rotated = rotatePoint3D(x, y, z, camera.rotX, camera.rotY);
+                        const projected = project3D(rotated.x, rotated.y, rotated.z);
+
+                        vertices.push({
+                            x3d: rotated.x, y3d: rotated.y, z3d: rotated.z,
+                            x2d: projected.x, y2d: projected.y,
+                            u: u, v: v, displacement: displacement
+                        });
+                    }
+                }
+            }
+
+            // Draw wireframe
+            ctx.lineWidth = 1;
+
+            // Draw radial lines (blue)
+            for (let i = 0; i <= gridSize; i += 2) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 191, 255, 0.6)';
+                ctx.lineWidth = 1;
+                let first = true;
+                for (let j = 0; j <= gridSize; j++) {
+                    const index = i * (gridSize + 1) + j;
+                    if (index < vertices.length) {
+                        const vertex = vertices[index];
+                        if (first) {
+                            ctx.moveTo(vertex.x2d, vertex.y2d);
+                            first = false;
+                        } else {
+                            ctx.lineTo(vertex.x2d, vertex.y2d);
+                        }
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // Draw circular lines (blue)
+            for (let j = 5; j <= gridSize; j += 5) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 191, 255, 0.4)';
+                ctx.lineWidth = 1;
+                let first = true;
+                for (let i = 0; i <= gridSize; i++) {
+                    const index = i * (gridSize + 1) + j;
+                    if (index < vertices.length) {
+                        const vertex = vertices[index];
+                        if (first) {
+                            ctx.moveTo(vertex.x2d, vertex.y2d);
+                            first = false;
+                        } else {
+                            ctx.lineTo(vertex.x2d, vertex.y2d);
+                        }
+                    }
+                }
+                // Close the circle
+                const firstIndex = 0 * (gridSize + 1) + j;
+                if (firstIndex < vertices.length) {
+                    ctx.lineTo(vertices[firstIndex].x2d, vertices[firstIndex].y2d);
+                }
+                ctx.stroke();
+            }
+
+            // Draw white delineation lines for better structure visualization
+            // White radial lines (every 4th line)
+            for (let i = 0; i <= gridSize; i += 4) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 1.5;
+                let first = true;
+                for (let j = 0; j <= gridSize; j++) {
+                    const index = i * (gridSize + 1) + j;
+                    if (index < vertices.length) {
+                        const vertex = vertices[index];
+                        if (first) {
+                            ctx.moveTo(vertex.x2d, vertex.y2d);
+                            first = false;
+                        } else {
+                            ctx.lineTo(vertex.x2d, vertex.y2d);
+                        }
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // White circular lines (major circles)
+            for (let j = 10; j <= gridSize; j += 10) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 1.5;
+                let first = true;
+                for (let i = 0; i <= gridSize; i++) {
+                    const index = i * (gridSize + 1) + j;
+                    if (index < vertices.length) {
+                        const vertex = vertices[index];
+                        if (first) {
+                            ctx.moveTo(vertex.x2d, vertex.y2d);
+                            first = false;
+                        } else {
+                            ctx.lineTo(vertex.x2d, vertex.y2d);
+                        }
+                    }
+                }
+                // Close the circle
+                const firstIndex = 0 * (gridSize + 1) + j;
+                if (firstIndex < vertices.length) {
+                    ctx.lineTo(vertices[firstIndex].x2d, vertices[firstIndex].y2d);
+                }
+                ctx.stroke();
+            }
+
+            // Color-code the surface based on displacement
+            vertices.forEach(vertex => {
+                if (Math.abs(vertex.displacement) > 0.005) {
+                    // Enhanced brightness mapping with better visibility
+                    const rawIntensity = Math.abs(vertex.displacement);
+
+                    // Apply power scaling to make low values more visible
+                    const scaledIntensity = Math.pow(rawIntensity, 0.6);
+
+                    // Scale based on amplitude and add base brightness
+                    const baseIntensity = Math.min(scaledIntensity * 400 / amplitude, 1.0);
+                    const finalIntensity = Math.floor((baseIntensity * 0.7 + 0.3) * 255); // Add 30% base brightness
+
+                    ctx.fillStyle = vertex.displacement > 0 ?
+                        `rgba(0, ${Math.floor(finalIntensity * 0.8)}, ${finalIntensity}, 0.9)` :
+                        `rgba(0, ${finalIntensity}, ${Math.floor(finalIntensity * 0.4)}, 0.9)`;
+                    ctx.beginPath();
+                    ctx.arc(vertex.x2d, vertex.y2d, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Draw nodal lines if enabled
+            if (document.getElementById('showNodesCheck').checked) {
+                // Draw nodal circles in 3D
+                for (let i = 0; i < secondMode; i++) {
+                    if (i < besselZeros[currentMode].length) {
+                        const nodeRadius = (besselZeros[currentMode][i] / besselZeros[currentMode][secondMode]) * maxRadius;
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                        ctx.lineWidth = 2;
+
+                        let first = true;
+                        for (let angle = 0; angle <= Math.PI * 2.1; angle += 0.2) {
+                            const x = nodeRadius * Math.cos(angle);
+                            const y = nodeRadius * Math.sin(angle);
+                            const z = 0;
+
+                            const rotated = rotatePoint3D(x, y, z, camera.rotX, camera.rotY);
+                            const projected = project3D(rotated.x, rotated.y, rotated.z);
+
+                            if (first) {
+                                ctx.moveTo(projected.x, projected.y);
+                                first = false;
+                            } else {
+                                ctx.lineTo(projected.x, projected.y);
+                            }
+                        }
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
         function animate() {
             if (isPlaying) time += 0.05;
             drawVisualization();
@@ -688,9 +1008,77 @@
             updateModeInfo();
         });
 
+        document.getElementById('showPseudo3DCheck').addEventListener('change', (e) => {
+            showPseudo3D = e.target.checked;
+            if (showPseudo3D && showReal3D) {
+                document.getElementById('showReal3DCheck').checked = false;
+                showReal3D = false;
+            }
+        });
+
+        document.getElementById('showReal3DCheck').addEventListener('change', (e) => {
+            showReal3D = e.target.checked;
+            if (showReal3D && showPseudo3D) {
+                document.getElementById('showPseudo3DCheck').checked = false;
+                showPseudo3D = false;
+            }
+            updateCanvasCursor();
+        });
+
+        // Mouse controls for 3D camera
+        canvas.addEventListener('mousedown', (e) => {
+            if (showReal3D && systemType === 'bessel') {
+                camera.isDragging = true;
+                camera.lastMouseX = e.clientX;
+                camera.lastMouseY = e.clientY;
+                canvas.style.cursor = 'grabbing';
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (camera.isDragging && showReal3D && systemType === 'bessel') {
+                const deltaX = e.clientX - camera.lastMouseX;
+                const deltaY = e.clientY - camera.lastMouseY;
+
+                camera.rotY -= deltaX * 0.01;
+                camera.rotX -= deltaY * 0.01;
+
+                // Clamp X rotation to prevent flipping
+                camera.rotX = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotX));
+
+                camera.lastMouseX = e.clientX;
+                camera.lastMouseY = e.clientY;
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            camera.isDragging = false;
+            canvas.style.cursor = showReal3D && systemType === 'bessel' ? 'grab' : 'default';
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            camera.isDragging = false;
+            canvas.style.cursor = 'default';
+        });
+
+        // Mouse wheel for zooming
+        canvas.addEventListener('wheel', (e) => {
+            if (showReal3D && systemType === 'bessel') {
+                e.preventDefault();
+                camera.z += e.deltaY * 0.01;
+                camera.z = Math.max(2, Math.min(10, camera.z)); // Clamp zoom
+            }
+        });
+
+        // Update cursor when entering/leaving 3D mode
+        function updateCanvasCursor() {
+            canvas.style.cursor = showReal3D && systemType === 'bessel' ? 'grab' : 'default';
+        }
+
         // Initialize
         switchSystem('linear');
         animate();
+        updateCanvasCursor();
     </script>
 </body>
 </html>
