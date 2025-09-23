@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibrational Mode Playground</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #00bfff;
+            text-shadow: 0 0 30px rgba(0, 191, 255, 0.3);
+            text-align: center;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            color: #b0b0b0;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 300;
+        }
+        
+        .playground {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        .canvas-container {
+            background-color: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        canvas {
+            border-radius: 10px;
+            background-color: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            aspect-ratio: 4/3;
+            display: block;
+        }
+        
+        .controls-panel {
+            background-color: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            height: fit-content;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        .control-group:last-child {
+            border-bottom: none;
+        }
+        
+        .control-label {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #00bfff;
+        }
+        
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .mode-tab {
+            flex: 1;
+            padding: 8px;
+            background-color: #3a3a3a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        
+        .mode-tab.active {
+            background-color: #00bfff;
+            color: #1a1a1a;
+            border-color: #00bfff;
+        }
+        
+        .mode-tab:hover {
+            background-color: #4a4a4a;
+            border-color: #00bfff;
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #3a3a3a;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00bfff;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .checkbox {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .play-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .play-btn {
+            flex: 1;
+            padding: 10px;
+            background-color: #00bfff;
+            border: 1px solid #00bfff;
+            border-radius: 8px;
+            color: #1a1a1a;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .play-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .value-display {
+            background-color: #3a3a3a;
+            color: #00bfff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-left: 10px;
+            font-family: monospace;
+            border: 1px solid #4a4a4a;
+        }
+        
+        .info-panel {
+            background-color: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .equation {
+            background-color: #1a1a1a;
+            border: 1px solid #4a4a4a;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 12px;
+            color: #00bfff;
+        }
+        
+        @media (max-width: 768px) {
+            .playground {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .controls-panel {
+                order: -1;
+                padding: 15px;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .mode-tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vibrational Mode Playground</h1>
+        <p class="subtitle">Explore circular patterns, standing waves, and Bessel functions</p>
+        
+        <div class="playground">
+            <div class="canvas-container">
+                <canvas id="canvas" width="800" height="600"></canvas>
+            </div>
+            
+            <div class="controls-panel">
+                <div class="control-group">
+                    <div class="control-label">System Type</div>
+                    <div class="mode-tabs">
+                        <button class="mode-tab active" id="linearTab">Linear</button>
+                        <button class="mode-tab" id="circularTab">Circular</button>
+                        <button class="mode-tab" id="besselTab">Bessel</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-label">Animation</div>
+                    <div class="play-controls">
+                        <button class="play-btn" id="playPauseBtn">⏸️ Pause</button>
+                        <button class="play-btn" id="resetBtn">↻ Reset</button>
+                    </div>
+                    <div class="slider-container">
+                        <label>Speed <span class="value-display" id="speedDisplay">1.0x</span></label>
+                        <input type="range" class="slider" id="speedSlider" min="0.1" max="3" step="0.1" value="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-label">Mode Settings</div>
+                    <div class="slider-container">
+                        <label id="modeLabel">Angular Mode (m) <span class="value-display" id="modeDisplay">0</span></label>
+                        <input type="range" class="slider" id="modeSlider" min="0" max="6" step="1" value="0">
+                    </div>
+                    <div class="slider-container" id="secondModeContainer" style="display: none;">
+                        <label id="secondModeLabel">Radial Mode (n) <span class="value-display" id="secondModeDisplay">0</span></label>
+                        <input type="range" class="slider" id="secondModeSlider" min="0" max="4" step="1" value="0">
+                    </div>
+                    <div class="slider-container">
+                        <label>Amplitude <span class="value-display" id="amplitudeDisplay">1.0</span></label>
+                        <input type="range" class="slider" id="amplitudeSlider" min="0.1" max="2" step="0.1" value="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-label">Visual Effects</div>
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="showNodesCheck" checked>
+                        <label id="nodesLabel">Show Fixed Points</label>
+                    </div>
+                    <div class="checkbox-container">
+                        <input type="checkbox" class="checkbox" id="showGridCheck" checked>
+                        <label id="gridLabel">Polar Grid</label>
+                    </div>
+                </div>
+                
+                <div class="info-panel">
+                    <div class="control-label">Current Pattern</div>
+                    <div id="modeInfo">
+                        <div>Mode: m = 0</div>
+                        <div class="equation">r(θ,t) = R + A cos(ωt)</div>
+                        <div>Shape: Breathing circle</div>
+                        <div>Fixed points: 1 (center)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let imageData = ctx.createImageData(canvas.width, canvas.height);
+        
+        // Animation state
+        let time = 0;
+        let isPlaying = true;
+        let speed = 1.0;
+        let amplitude = 1.0;
+        let currentMode = 0;
+        let secondMode = 0;
+        let systemType = 'circular';
+        
+        const circularShapeNames = ["Breathing circle", "Dipole", "Quadrupole", "Sextupole", "Octupole", "Decapole", "Dodecapole"];
+        const linearShapeNames = ["Fundamental", "1st Overtone", "2nd Overtone", "3rd Overtone", "4th Overtone", "5th Overtone", "6th Overtone"];
+
+        // Zeros of Bessel functions
+        const besselZeros = [
+            [2.405, 5.520, 8.654, 11.792, 14.931],
+            [3.832, 7.016, 10.173, 13.324, 16.471],
+            [5.136, 8.417, 11.620, 14.796, 17.960],
+            [6.380, 9.761, 13.015, 16.223, 19.409],
+            [7.588, 11.065, 14.373, 17.616, 20.827],
+            [8.771, 12.339, 15.700, 18.980, 22.218],
+            [9.936, 13.589, 17.004, 20.321, 23.586]
+        ];
+        
+        function factorial(n) {
+            if (n <= 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) result *= i;
+            return result;
+        }
+
+        function besselJ(n, x) {
+            if (Math.abs(x) < 1e-10) return n === 0 ? 1 : 0;
+            if (Math.abs(x) > 25) {
+                const phase = x - (n * Math.PI / 2) - (Math.PI / 4);
+                return Math.sqrt(2 / (Math.PI * x)) * Math.cos(phase);
+            }
+            let sum = 0;
+            let term = Math.pow(x / 2, n) / factorial(n);
+            sum += term;
+            for (let k = 1; k < 50; k++) {
+                term *= (-1 * x * x) / (4 * k * (n + k));
+                sum += term;
+                if (Math.abs(term) < Math.abs(sum) * 1e-16) break;
+            }
+            return sum;
+        }
+        
+        function switchSystem(type) {
+            systemType = type;
+            document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(type + 'Tab').classList.add('active');
+            
+            if (type === 'circular') {
+                document.getElementById('modeLabel').innerHTML = `Angular Mode (m) <span class="value-display" id="modeDisplay">${currentMode}</span>`;
+                document.getElementById('nodesLabel').textContent = 'Show Fixed Points';
+                document.getElementById('gridLabel').textContent = 'Polar Grid';
+                document.getElementById('secondModeContainer').style.display = 'none';
+            } else if (type === 'linear') {
+                document.getElementById('modeLabel').innerHTML = `Harmonic (n) <span class="value-display" id="modeDisplay">${currentMode}</span>`;
+                document.getElementById('nodesLabel').textContent = 'Show Nodes';
+                document.getElementById('gridLabel').textContent = 'Coordinate Grid';
+                document.getElementById('secondModeContainer').style.display = 'none';
+            } else if (type === 'bessel') {
+                document.getElementById('modeLabel').innerHTML = `Angular Mode (m) <span class="value-display" id="modeDisplay">${currentMode}</span>`;
+                document.getElementById('secondModeLabel').innerHTML = `Radial Mode (n) <span class="value-display" id="secondModeDisplay">${secondMode}</span>`;
+                document.getElementById('nodesLabel').textContent = 'Show Nodal Lines';
+                document.getElementById('gridLabel').textContent = 'Polar Grid';
+                document.getElementById('secondModeContainer').style.display = 'block';
+            }
+            updateModeInfo();
+        }
+        
+        function updateModeInfo() {
+            const modeInfo = document.getElementById('modeInfo');
+            if (systemType === 'circular') {
+                const shapeName = circularShapeNames[currentMode] || `${2*currentMode}-lobed`;
+                const fixedPoints = currentMode === 0 ? '1 (center)' : `${2 * currentMode} (boundary)`;
+                const equation = currentMode === 0 ? 'r(θ,t) = R + A·cos(ωt)' : `r(θ,t) = R + A·cos(${currentMode}θ)·cos(ωt)`;
+                modeInfo.innerHTML = `<div>Mode: m = ${currentMode}</div><div class="equation">${equation}</div><div>Shape: ${shapeName}</div><div>Fixed points: ${fixedPoints}</div>`;
+            } else if (systemType === 'linear') {
+                const harmonicNumber = currentMode + 1;
+                const shapeName = linearShapeNames[currentMode] || `${harmonicNumber}th harmonic`;
+                const equation = `y(x,t) = A·sin(${harmonicNumber}πx/L)·cos(ωt)`;
+                modeInfo.innerHTML = `<div>Harmonic: n = ${harmonicNumber}</div><div class="equation">${equation}</div><div>Pattern: ${shapeName}</div><div>Nodes: ${harmonicNumber + 1}, Antinodes: ${harmonicNumber}</div>`;
+            } else if (systemType === 'bessel') {
+                const m = currentMode;
+                const n = secondMode + 1;
+                const equation = `u(r,θ,t) = A·J₍${m}₎(k·r)·cos(${m}θ)·cos(ωt)`;
+                modeInfo.innerHTML = `<div>Angular (m): ${m}, Radial (n): ${n}</div><div class="equation">${equation}</div><div>Pattern: Mode (${m},${n})</div><div>Vibrating circular membrane</div>`;
+            }
+        }
+        
+        function drawVisualization() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (systemType === 'circular') drawCircularMembrane();
+            else if (systemType === 'linear') drawLinearString();
+            else if (systemType === 'bessel') drawBesselMembrane();
+        }
+        
+        function drawCircularMembrane() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const baseRadius = Math.min(canvas.width, canvas.height) * 0.3;
+            
+            if (document.getElementById('showGridCheck').checked) {
+                drawPolarGrid(centerX, centerY, baseRadius * 1.5);
+            }
+            
+            drawOscillatingBoundary(centerX, centerY, baseRadius, currentMode);
+            
+            if (document.getElementById('showNodesCheck').checked) {
+                drawCircularNodalPoints(centerX, centerY, baseRadius, currentMode);
+            }
+        }
+        
+        function drawOscillatingBoundary(centerX, centerY, baseRadius, m) {
+            const temporalPart = Math.cos(time * speed);
+            const amplitudeScale = amplitude * 0.3;
+            
+            ctx.beginPath();
+            for (let angle = 0; angle <= Math.PI * 2.02; angle += 0.02) {
+                const r = baseRadius * (1 + amplitudeScale * (m === 0 ? 1 : Math.cos(m * angle)) * temporalPart);
+                const x = centerX + r * Math.cos(angle);
+                const y = centerY + r * Math.sin(angle);
+                if (angle === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.lineWidth = 3 + Math.abs(temporalPart) * 2;
+            ctx.strokeStyle = `hsl(${180 + temporalPart * 60}, 70%, ${60 + Math.abs(temporalPart) * 20}%)`;
+            ctx.stroke();
+        }
+        
+        function drawCircularNodalPoints(centerX, centerY, baseRadius, m) {
+            ctx.fillStyle = '#00bfff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            
+            if (m > 0) {
+                for (let k = 0; k < 2 * m; k++) {
+                    const angle = (2 * k + 1) * Math.PI / (2 * m);
+                    ctx.beginPath();
+                    ctx.arc(centerX + baseRadius * Math.cos(angle), centerY + baseRadius * Math.sin(angle), 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            } else {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+        
+        function drawPolarGrid(centerX, centerY, maxRadius) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(centerX + maxRadius * Math.cos(angle), centerY + maxRadius * Math.sin(angle));
+                ctx.stroke();
+            }
+            
+            for (let r = maxRadius * 0.2; r <= maxRadius; r += maxRadius * 0.2) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        
+        function drawLinearString() {
+            const margin = 60;
+            const stringLength = canvas.width - 2 * margin;
+            const centerY = canvas.height / 2;
+            const startX = margin;
+            
+            if (document.getElementById('showGridCheck').checked) {
+                drawLinearGrid(startX, stringLength, centerY);
+            }
+            
+            drawOscillatingString(startX, stringLength, centerY, currentMode);
+            
+            if (document.getElementById('showNodesCheck').checked) {
+                drawLinearNodes(startX, stringLength, centerY, currentMode);
+            }
+        }
+        
+        function drawOscillatingString(startX, stringLength, centerY, n) {
+            const h = n + 1;
+            const temporalPart = Math.cos(time * speed);
+            const amp = amplitude * 60;
+            
+            ctx.strokeStyle = `hsl(${180 + temporalPart * 60}, 70%, ${60 + Math.abs(temporalPart) * 20}%)`;
+            ctx.lineWidth = 3 + Math.abs(temporalPart) * 2;
+            ctx.beginPath();
+            
+            for (let i = 0; i <= 200; i++) {
+                const x = startX + (i / 200) * stringLength;
+                const y = centerY - amp * Math.sin(h * Math.PI * (x - startX) / stringLength) * temporalPart;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        function drawLinearNodes(startX, stringLength, centerY, n) {
+            const h = n + 1;
+            ctx.fillStyle = '#00bfff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            
+            for (let k = 0; k <= h; k++) {
+                const nodeX = startX + k * stringLength / h;
+                ctx.beginPath();
+                ctx.arc(nodeX, centerY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+            
+            // Draw antinodes
+            ctx.fillStyle = '#00bfff';
+            for (let k = 0; k < h; k++) {
+                const antinodeX = startX + (k + 0.5) * stringLength / h;
+                ctx.beginPath();
+                ctx.arc(antinodeX, centerY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+        
+        function drawLinearGrid(startX, stringLength, centerY) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            
+            for (let y = centerY - 150; y <= centerY + 150; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(startX - 20, y);
+                ctx.lineTo(startX + stringLength + 20, y);
+                ctx.stroke();
+            }
+            
+            for (let i = 0; i <= 10; i++) {
+                const x = startX + (i / 10) * stringLength;
+                ctx.beginPath();
+                ctx.moveTo(x, centerY - 160);
+                ctx.lineTo(x, centerY + 160);
+                ctx.stroke();
+            }
+        }
+        
+        function drawBesselMembrane() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
+
+            drawBesselPattern(centerX, centerY, maxRadius, currentMode, secondMode);
+            
+            if (document.getElementById('showGridCheck').checked) {
+                drawPolarGrid(centerX, centerY, maxRadius);
+            }
+            
+            if (document.getElementById('showNodesCheck').checked) {
+                drawBesselNodes(centerX, centerY, maxRadius, currentMode, secondMode);
+            }
+        }
+        
+        function drawBesselPattern(centerX, centerY, maxRadius, m, n) {
+            const temporalPart = Math.cos(time * speed);
+
+            if (m >= besselZeros.length || n >= besselZeros[m].length) return;
+            const k = besselZeros[m][n];
+
+            const data = imageData.data;
+            const width = canvas.width;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const px = (i / 4) % width;
+                const py = Math.floor((i / 4) / width);
+                const dx = px - centerX;
+                const dy = py - centerY;
+                const r = Math.sqrt(dx * dx + dy * dy);
+
+                if (r > maxRadius) {
+                    data[i + 3] = 0;
+                    continue;
+                }
+
+                const angle = Math.atan2(dy, dx);
+                const kr = k * r / maxRadius;
+
+                const radialPart = besselJ(m, kr);
+                const angularPart = Math.cos(m * angle);
+                const displacement = radialPart * angularPart * temporalPart * amplitude;
+
+                const intensity = Math.min(Math.abs(displacement) * 255 * 2.5, 255);
+                if (displacement > 0) {
+                    // Use blue/cyan colors (matching the existing theme)
+                    data[i] = 0;
+                    data[i + 1] = intensity * 0.8;
+                    data[i + 2] = intensity;
+                } else {
+                    // Use green colors (matching the existing theme)
+                    data[i] = 0;
+                    data[i + 1] = intensity;
+                    data[i + 2] = intensity * 0.3;
+                }
+                data[i + 3] = 255;
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function drawBesselNodes(centerX, centerY, maxRadius, m, n) {
+            if (m >= besselZeros.length || n >= besselZeros[m].length) return;
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            
+            for (let i = 0; i < n; i++) {
+                const nodeRadius = (besselZeros[m][i] / besselZeros[m][n]) * maxRadius;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, nodeRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            if (m > 0) {
+                for (let k = 0; k < m; k++) {
+                    const nodeAngle = (2 * k + 1) * Math.PI / (2 * m);
+                    ctx.beginPath();
+                    ctx.moveTo(centerX - maxRadius * Math.cos(nodeAngle), centerY - maxRadius * Math.sin(nodeAngle));
+                    ctx.lineTo(centerX + maxRadius * Math.cos(nodeAngle), centerY + maxRadius * Math.sin(nodeAngle));
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        function animate() {
+            if (isPlaying) time += 0.05;
+            drawVisualization();
+            requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        document.getElementById('circularTab').addEventListener('click', () => switchSystem('circular'));
+        document.getElementById('linearTab').addEventListener('click', () => switchSystem('linear'));
+        document.getElementById('besselTab').addEventListener('click', () => switchSystem('bessel'));
+        
+        document.getElementById('playPauseBtn').addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            document.getElementById('playPauseBtn').textContent = isPlaying ? '⏸️ Pause' : '▶️ Play';
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            time = 0;
+        });
+        
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            speed = parseFloat(e.target.value);
+            document.getElementById('speedDisplay').textContent = speed.toFixed(1) + 'x';
+        });
+        
+        document.getElementById('amplitudeSlider').addEventListener('input', (e) => {
+            amplitude = parseFloat(e.target.value);
+            document.getElementById('amplitudeDisplay').textContent = amplitude.toFixed(1);
+        });
+        
+        document.getElementById('modeSlider').addEventListener('input', (e) => {
+            currentMode = parseInt(e.target.value);
+            document.getElementById('modeDisplay').textContent = currentMode;
+            updateModeInfo();
+        });
+        
+        document.getElementById('secondModeSlider').addEventListener('input', (e) => {
+            secondMode = parseInt(e.target.value);
+            document.getElementById('secondModeDisplay').textContent = secondMode;
+            updateModeInfo();
+        });
+
+        // Initialize
+        switchSystem('linear');
+        animate();
+    </script>
+</body>
+</html>
