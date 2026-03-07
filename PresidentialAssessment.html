@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trump Administration Timeline</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading">Loading Timeline...</div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // Icon components (simplified versions of lucide-react icons)
+        const AlertCircle = ({ className }) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
+
+        const CheckCircle = ({ className }) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        );
+
+        const MinusCircle = ({ className }) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+        );
+
+        const Landmark = ({ className }) => (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="22" x2="21" y2="22"></line>
+                <line x1="6" y1="18" x2="6" y2="11"></line>
+                <line x1="10" y1="18" x2="10" y2="11"></line>
+                <line x1="14" y1="18" x2="14" y2="11"></line>
+                <line x1="18" y1="18" x2="18" y2="11"></line>
+                <polygon points="12 2 20 7 4 7"></polygon>
+            </svg>
+        );
+
+        const TrumpTimelineComplete = () => {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterCategory, setFilterCategory] = useState('all');
+            const [userRatings, setUserRatings] = useState({});
+
+            // Load ratings from localStorage on mount
+            useEffect(() => {
+                const saved = localStorage.getItem('trumpTimelineRatings');
+                if (saved) {
+                    setUserRatings(JSON.parse(saved));
+                }
+            }, []);
+
+            // Save ratings to localStorage whenever they change
+            useEffect(() => {
+                localStorage.setItem('trumpTimelineRatings', JSON.stringify(userRatings));
+            }, [userRatings]);
+
+            // Landmark events are major contextual events not caused by the administration
+            const landmarkEvents = [
+                { date: '2025-01-20', event: 'Elon Musk salute controversy at Inauguration' },
+                { date: '2025-01-29', event: 'American Eagle Flight 5342 collision kills 67 people' },
+                { date: '2025-02-13', event: 'DOJ resignations over order to drop the Eric Adams case' },
+                { date: '2025-03-08', event: 'Pro-Palestinian activist Mahmoud Khalil detained by federal authorities' },
+                { date: '2025-03-12', event: 'Trump-Binance stablecoin Scandal' },
+                { date: '2025-03-18', event: 'DogeQuest doxxing site goes public / draws major coverage' },
+                { date: '2025-04-09', event: 'Trump accused of moving markets / manipulating stocks via social media post' },
+                { date: '2025-03-24', event: 'Cabinet Signal chat leaked to journalist' },
+                { date: '2025-05-05', event: 'Trump family wealth jumps billions from crypto while Trump is in office' },
+                { date: '2025-09-10', event: 'Charlie Kirk assassinated' },
+                { date: '2025-10-14', event: 'Young Republican group chat leaks' },
+                { date: '2025-11-12', event: 'Epstein emails show Trump references' },
+                { date: '2025-11-15', event: 'Epstein joke email causes Clinton speculation' },
+                { date: '2025-11-26', event: 'National Guard member shot near White House' },
+                { date: '2025-12-12', event: 'Epstein photos show Trump, Clinton, and others published' },
+                { date: '2026-01-07', event: 'ICE agent shoots Renée Good in face, killing her in Minneapolis' },
+                { date: '2026-01-13', event: 'DHS employee data leak to "ICE List"' },
+                { date: '2026-01-14', event: 'ICE agent shoots and injures man in Minneapolis' },
+                { date: '2026-01-20', event: 'ICE detains 5-year-old child' },
+                { date: '2026-01-24', event: 'Border Patrol kills Alex Pretti in Minneapolis' },
+                { date: '2026-01-27', event: 'Rep. Ilhan Omar attacked at town hall' },
+                { date: '2026-02-03', event: 'Partial shutdown ends after 3 days' },
+            ];
+
+            // Trump administration actions (ratable events)
+            const events = [
+                // January 20, 2025 - Day One Executive Orders
+                { date: '2025-01-20', event: 'Reverses 78 Biden executive orders' },
+                { date: '2025-01-20', event: 'Ends all federal DEI programs and initiatives' },
+                { date: '2025-01-20', event: 'Declares national energy emergency to boost fossil fuel production' },
+                { date: '2025-01-20', event: 'Designates Mexican drug cartels as Foreign Terrorist Organizations' },
+                { date: '2025-01-20', event: 'Establishes Department of Government Efficiency (DOGE) led by Musk' },
+                { date: '2025-01-20', event: 'Attempts to end birthright citizenship for children of undocumented immigrants' },
+                { date: '2025-01-20', event: 'Declares national emergency at southern border, deploys military' },
+                { date: '2025-01-20', event: 'Withdraws from World Health Organization' },
+                { date: '2025-01-20', event: 'Withdraws from Paris Climate Agreement (second time)' },
+                { date: '2025-01-20', event: 'Delays TikTok ban enforcement by 75 days' },
+                { date: '2025-01-20', event: 'Defines sex as binary on all federal documents and programs' },
+                { date: '2025-01-20', event: 'Freezes all federal hiring except military and public safety' },
+                { date: '2025-01-20', event: 'Renames Denali back to Mt. McKinley' },
+                { date: '2025-01-20', event: 'Renames Gulf of Mexico to "Gulf of America"' },
+                { date: '2025-01-20', event: 'Orders review and cuts to all US foreign aid programs' },
+                { date: '2025-01-20', event: 'Authorizes deportation of undocumented immigrants without court hearings' },
+                { date: '2025-01-20', event: 'Orders federal agencies to stop "censorship" partnerships with tech companies' },
+                { date: '2025-01-20', event: 'Requires federal investments to prioritize American companies' },
+                { date: '2025-01-20', event: 'Freezes and reviews all pending Biden-era regulations' },
+                { date: '2025-01-20', event: 'Stops all new federal regulations for 60 days' },
+                { date: '2025-01-20', event: 'Pardons ~1,600 Jan 6 defendants including Oath Keepers and Proud Boys leaders' },
+                { date: '2025-01-20', event: 'Pardons relieve January 6 defendants of $1.3 billion in restitution payments' },
+                { date: '2025-01-20', event: 'Revokes security clearances of 50 people including John Bolton' },
+                { date: '2025-01-20', event: 'Announces intention to expand US territory (Canada, Greenland, Panama Canal)' },
+                { date: '2025-01-20', event: 'Susie Wiles becomes first female Chief of Staff' },
+                { date: '2025-01-20', event: 'Marco Rubio confirmed as Secretary of State 99-0' },
+
+                // January 21-31, 2025
+                { date: '2025-01-21', event: 'Pardons Ross Ulbricht (Silk Road founder)' },
+                { date: '2025-01-21', event: 'Fires Admiral Linda Fagan as Coast Guard Commandant - first ever fired' },
+                { date: '2025-01-22', event: 'Orders 1,500 troops to Mexico border' },
+                { date: '2025-01-22', event: 'Re-designates Houthis as terrorist organization' },
+                { date: '2025-01-22', event: 'Removes protection for immigrants in sensitive areas (hospitals, schools, churches)' },
+                { date: '2025-01-22', event: 'Announces 10% tariff on China (effective Feb 4)' },
+                { date: '2025-01-23', event: 'Declassifies JFK, RFK, MLK assassination files' },
+                { date: '2025-01-24', event: 'Visits North Carolina for Hurricane Helene disaster response' },
+                { date: '2025-01-24', event: 'Fires 17 Inspectors General in "Friday Night Massacre"' },
+                { date: '2025-01-24', event: 'Pete Hegseth confirmed as Defense Secretary 51-50 with VP tiebreaker' },
+                { date: '2025-01-24', event: 'Reaffirms Canada should be 51st state' },
+                { date: '2025-01-25', event: 'States wants to acquire Greenland' },
+                { date: '2025-01-26', event: 'Announces retaliatory tariffs on Colombia' },
+                { date: '2025-01-27', event: 'Fires career DOJ lawyers who investigated him' },
+                { date: '2025-01-27', event: 'OMB freezes all federal financial assistance' },
+                { date: '2025-01-27', event: 'Fires NLRB General Counsel and Board Member' },
+                { date: '2025-01-28', event: 'Revokes General Milley security detail and clearance' },
+                { date: '2025-01-28', event: 'OPM offers buyouts to federal employees' },
+                { date: '2025-01-29', event: 'United States government online resource removals begin (DEI-related scrubs)' },
+                { date: '2025-01-29', event: 'Signs Laken Riley Act - first bill of second term' },
+                { date: '2025-01-29', event: 'Orders detention of migrants at Guantanamo Bay' },
+                { date: '2025-01-30', event: 'Trump orders Water release from Lake Kaweah & Lake Success' },
+                { date: '2025-01-30', event: 'Blames DEI for plane crash without evidence' },
+                { date: '2025-01-30', event: 'Ultimatum for senior FBI employees to resign' },
+                { date: '2025-01-31', event: 'Announces 25% tariffs on Canada & Mexico (effective Mar 4 after pause)' },
+
+                // February 2025
+                { date: '2025-02-01', event: 'Fires CFPB Director Rohit Chopra' },
+                { date: '2025-02-01', event: 'Hegseth cancels identity months at Department of Defense' },
+                { date: '2025-02-01', event: 'Orders airstrikes in Somalia vs ISIS' },
+                { date: '2025-02-03', event: 'Rubio becomes acting head of USAID as DOGE plans shutdown' },
+                { date: '2025-02-04', event: '10% China tariff takes effect' },
+                { date: '2025-02-04', event: 'USAID personnel placed on administrative leave globally' },
+                { date: '2025-02-04', event: 'Pam Bondi confirmed as Attorney General 54-46' },
+                { date: '2025-02-04', event: 'Calls for permanent removal of Palestinians from Gaza' },
+                { date: '2025-02-05', event: 'DOJ "Weaponization Working Group" established' },
+                { date: '2025-02-05', event: 'DOJ announces will stop enforcing Foreign Corrupt Practices Act' },
+                { date: '2025-02-05', event: 'Bans transgender women from women\'s sports' },
+                { date: '2025-02-07', event: 'White South African refugee program created' },
+                { date: '2025-02-07', event: 'Announces intent to chair Kennedy Center board' },
+                { date: '2025-02-07', event: 'Fires Archivist Colleen Joy Shogan' },
+                { date: '2025-02-07', event: 'Revokes President Biden\'s security clearance' },
+                { date: '2025-02-07', event: 'Pentagon removes CNN and The Hill from press workspace' },
+                { date: '2025-02-09', event: 'Designates "Gulf of America Day"' },
+                { date: '2025-02-09', event: 'Attends Super Bowl (first sitting president)' },
+                { date: '2025-02-09', event: 'Orders US Mint to stop minting pennies' },
+                { date: '2025-02-10', event: 'Orders dismissal of NYC Mayor Eric Adams charges' },
+                { date: '2025-02-10', event: 'Imposes 25% tariff on steel & aluminum (effective Mar 12)' },
+                { date: '2025-02-11', event: 'Secures Marc Fogel release from Russia' },
+                { date: '2025-02-11', event: 'Bars Associated Press from Oval Office over terminology dispute' },
+                { date: '2025-02-12', event: 'Speaks with Putin about Ukraine negotiations' },
+                { date: '2025-02-13', event: 'Kennedy Center board elects Trump as chairman' },
+                { date: '2025-02-13', event: 'DOJ indicts James Comey' },
+                { date: '2025-02-13', event: 'Robert F. Kennedy Jr. confirmed as HHS Secretary 52-48' },
+                { date: '2025-02-14', event: 'Musk\'s DOGE fires FDA staff overseeing Neuralink regulation' },
+                { date: '2025-02-14', event: 'Bans Associated Press from Oval Office and Air Force One' },
+                { date: '2025-02-15', event: 'Tours Boeing on Air Force One delay' },
+                { date: '2025-02-16', event: 'Attends Daytona 500' },
+                { date: '2025-02-20', event: 'SEC drops Coinbase enforcement after political donations' },
+                { date: '2025-02-20', event: 'Kash Patel confirmed as FBI Director 51-49' },
+                { date: '2025-02-21', event: 'Fires Chairman of Joint Chiefs General Charles Q. Brown Jr.' },
+                { date: '2025-02-21', event: 'Hegseth fires Admiral Lisa Franchetti (Chief of Naval Operations) and General Bryan Slife' },
+                { date: '2025-02-21', event: 'Fires top military lawyers for Army, Navy, and Air Force' },
+                { date: '2025-02-23', event: 'SEC closes Robinhood probe after political donations' },
+                { date: '2025-02-23', event: 'Appoints Dan Bongino as Deputy FBI Director' },
+                { date: '2025-02-25', event: 'FAA cancels Verizon contract and shifts to Musk\'s Starlink' },
+                { date: '2025-02-25', event: 'Announces $5M "gold card" visa program' },
+                { date: '2025-02-26', event: 'Posts AI video depicting "Trump Gaza" under US occupation' },
+                { date: '2025-02-26', event: 'Announces 25% EU tariffs, delays Canada/Mexico implementation' },
+                { date: '2025-02-28', event: 'Heated Oval Office confrontation with Zelenskyy over mineral rights' },
+                { date: '2025-02-28', event: 'Suspends military aid to Ukraine for approximately one week' },
+
+                // March 2025
+                { date: '2025-03-01', event: 'Makes English the official US language' },
+                { date: '2025-03-02', event: 'Announces US Crypto Strategic Reserve' },
+                { date: '2025-03-03', event: 'Doubles China tariff to 20%' },
+                { date: '2025-03-04', event: 'Delivers address to joint session of Congress' },
+                { date: '2025-03-04', event: '25% tariffs on Canada and Mexico take effect' },
+                { date: '2025-03-05', event: '"Last warning" to Hamas on hostages' },
+                { date: '2025-03-07', event: 'Revokes student loan forgiveness for "illegal activities"' },
+                { date: '2025-03-10', event: 'Stages a Tesla promotion on White House grounds' },
+                { date: '2025-03-12', event: '25% steel and aluminum tariffs take effect globally' },
+                { date: '2025-03-14', event: 'Draft list of 43 countries for expanded travel ban' },
+                { date: '2025-03-15', event: 'Invokes Alien Enemies Act vs Venezuelan gang Tren de Aragua' },
+                { date: '2025-03-15', event: 'Orders airstrikes on Yemen, kills 31' },
+                { date: '2025-03-16', event: 'ICE deports 261 people despite court order' },
+                { date: '2025-03-17', event: 'Threatens military action against Iran over Houthi attacks' },
+                { date: '2025-03-18', event: 'Calls for Judge Boasberg impeachment; Chief Justice Roberts issues rebuke' },
+                { date: '2025-03-18', event: 'Releases additional withheld JFK assassination files' },
+                { date: '2025-03-18', event: 'Fires FTC commissioners Alvaro Bedoya and Rebecca Slaughter' },
+                { date: '2025-03-20', event: 'Orders Department of Education dismantling' },
+                { date: '2025-03-21', event: 'Revokes security clearances: Clinton, Harris, Cheney, Fauci, and 46 others' },
+                { date: '2025-03-23', event: 'Ends legal status of 500K+ migrants (TPS and humanitarian parole)' },
+                { date: '2025-03-24', event: 'Postmaster Louis DeJoy resigns under pressure' },
+                { date: '2025-03-25', event: 'Orders overhaul of electoral process and voting procedures' },
+                { date: '2025-03-26', event: 'Announces 25% tariff on foreign cars' },
+                { date: '2025-03-27', event: 'Pardons major donor Trevor Milton' },
+                { date: '2025-03-27', event: 'Pardons BitMEX executives tied to crypto industry' },
+                { date: '2025-03-27', event: 'Rubio revokes 300+ student visas over Palestine activism' },
+                { date: '2025-03-30', event: 'Hegseth announces military buildup in Japan' },
+                { date: '2025-03-30', event: 'Publicly considers bypassing 22nd Amendment term limits' },
+                { date: '2025-03-31', event: 'HHS withholds federal funds from Planned Parenthood' },
+
+                // April 2025
+                { date: '2025-04-02', event: 'Announces "Liberation Day" - 10% global baseline tariffs + reciprocal tariffs' },
+                { date: '2025-04-05', event: '10% baseline tariff takes effect, triggering stock market crash' },
+                { date: '2025-04-08', event: 'Raises China tariff to 145%' },
+                { date: '2025-04-09', event: 'Pauses reciprocal tariffs for 90 days (except China at 145%)' },
+                { date: '2025-04-23', event: 'Dinner with Trump sold as a perk to top $TRUMP coin holders' },
+                { date: '2025-04-25', event: 'Orders Judge Hannah Dugan arrested' },
+                { date: '2025-04-26', event: '"Executive Branch" club launches charging ~$500k for access to administration figures' },
+                { date: '2025-04-26', event: 'Attends Pope Francis funeral' },
+                { date: '2025-04-29', event: 'Trump Organization signs deal with Qatari government-owned firm' },
+
+                // May 2025
+                { date: '2025-05-01', event: 'Removes Mike Waltz as National Security Advisor after Signalgate' },
+                { date: '2025-05-01', event: 'Makes Rubio interim NSA while remaining Secretary of State' },
+                { date: '2025-05-01', event: 'Ends all federal funding to NPR & PBS' },
+                { date: '2025-05-04', event: 'Proposes reopening Alcatraz as federal prison' },
+                { date: '2025-05-06', event: 'Announces ceasefire deal with Houthis' },
+                { date: '2025-05-08', event: 'Forces separation of up to 1,000 transgender troops from military' },
+                { date: '2025-05-10', event: 'Defense Secretary accepts a Qatar Boeing 747 as a gift' },
+                { date: '2025-05-12', event: 'Announces China tariff reduction to 30% as trade truce' },
+                { date: '2025-05-13', event: 'Lifts Syria sanctions, begins working with new government' },
+                { date: '2025-05-14', event: 'Announces Qatar deal for 160 Boeing jets worth $52 billion' },
+                { date: '2025-05-14', event: 'China tariff reduction to 30% takes effect' },
+                { date: '2025-05-20', event: 'Trump crypto venture partners with a banned exchange (KuCoin)' },
+                { date: '2025-05-21', event: 'Foreign investors dominate the list of $TRUMP coin holders getting a Trump dinner' },
+                { date: '2025-05-21', event: 'Accepts ~$400M Boeing 747-8 from Qatar for Air Force One' },
+                { date: '2025-05-22', event: 'Hosts dinner for 220 top $TRUMP memecoin holders at Virginia golf club' },
+                { date: '2025-05-22', event: 'Revokes Harvard SEVP certification' },
+                { date: '2025-05-26', event: 'Pardons Paul Wasczak after his mother attends a Mar-a-Lago dinner' },
+                { date: '2025-05-26', event: 'Calls Putin "absolutely crazy" in interview' },
+                { date: '2025-05-28', event: 'Elon Musk exits Department of Government Efficiency' },
+                { date: '2025-05-28', event: 'Freezes Harvard VISA applications' },
+
+                // June 2025
+                { date: '2025-06-04', event: 'Proclamation banning entry of all Harvard international students' },
+                { date: '2025-06-07', event: 'Nationalizes California National Guard, deploys 2,000 to Los Angeles' },
+                { date: '2025-06-08', event: 'Threatens to deploy Marines to Los Angeles' },
+                { date: '2025-06-09', event: 'States California Governor Newsom should be arrested' },
+                { date: '2025-06-09', event: 'Deploys 700 Marines + 2,000 National Guard to Los Angeles' },
+                { date: '2025-06-13', event: 'EPA drops enforcement against GEO Group after donor ties' },
+                { date: '2025-06-13', event: 'Coordinates with Israel on strikes against Iran nuclear facilities' },
+                { date: '2025-06-15', event: 'Trump family promotes a Bitcoin mining venture' },
+                { date: '2025-06-16', event: 'Attends G7 summit in Canada' },
+                { date: '2025-06-16', event: 'Signs UK-US Trade Deal' },
+                { date: '2025-06-17', event: 'Receives $10M foreign licensing deal while in office' },
+                { date: '2025-06-18', event: 'Exchanges threats with Ayatollah Khamenei on social media' },
+                { date: '2025-06-20', event: 'Brokers Congo-Rwanda peace treaty' },
+                { date: '2025-06-21', event: 'Orders "Operation Midnight Hammer" - direct strikes on Iran nuclear sites' },
+                { date: '2025-06-22', event: 'B-2 bombers and Tomahawk missiles strike Fordow, Natanz, Isfahan facilities' },
+                { date: '2025-06-24', event: 'Announces Israel-Iran ceasefire after regional escalation' },
+                { date: '2025-06-24', event: 'NATO summit: secures commitment to 5% GDP defense spending by 2035' },
+                { date: '2025-06-27', event: 'Cuts off Canada tariff talks, announces punitive tariffs' },
+                { date: '2025-06-30', event: 'Launches and promotes a personal perfume brand' },
+
+                // July 2025
+                { date: '2025-07-01', event: 'Tours "Alligator Alcatraz" detention facility in Florida' },
+                { date: '2025-07-01', event: 'Pressures UPenn to ban trans athlete through federal funding threats' },
+                { date: '2025-07-02', event: 'Announces 60-day Gaza ceasefire plan' },
+                { date: '2025-07-03', event: 'Uses antisemitic slur at campaign-style rally' },
+                { date: '2025-07-04', event: 'Signs "One Big Beautiful Bill Act" - extends 2017 tax cuts, raises debt ceiling $5T' },
+                { date: '2025-07-14', event: 'HHS announces 90 ice cream brands will remove artificial dyes by 2028' },
+                { date: '2025-07-16', event: 'Claims deal with Coca-Cola to switch to cane sugar' },
+                { date: '2025-07-18', event: 'Signs bipartisan GENIUS Act (cryptocurrency regulation)' },
+                { date: '2025-07-18', event: 'Cuts $9 billion in funding for PBS, NPR, and USAID' },
+                { date: '2025-07-21', event: 'Releases all remaining MLK assassination files' },
+                { date: '2025-07-22', event: 'US withdraws from UNESCO' },
+                { date: '2025-07-29', event: 'Says banned Epstein for "stealing" young women, admits knowledge of abuse' },
+                { date: '2025-07-31', event: 'Announces $200M White House ballroom construction project' },
+
+                // August 2025
+                { date: '2025-08-01', event: 'Fires BLS Commissioner Erica Groshen over jobs report' },
+                { date: '2025-08-05', event: 'Apple gives Trump a gold statue amid tariff / policy pressures, Trump adds exemption for Apple for tariffs' },
+                { date: '2025-08-06', event: 'Accepts $100B commitment from Apple + 24K gold plaque for tariff relief' },
+                { date: '2025-08-08', event: 'Signs Armenia-Azerbaijan peace agreement' },
+                { date: '2025-08-08', event: 'Fires fifth IRS Commissioner Billy Long' },
+                { date: '2025-08-11', event: 'Invokes DC Home Rule Act, deploys federal forces to Washington DC' },
+                { date: '2025-08-15', event: 'Summit with Putin in Anchorage, Alaska - no ceasefire reached' },
+                { date: '2025-08-25', event: 'Fires Federal Reserve Governor Lisa Cook over mortgage fraud investigation' },
+                { date: '2025-08-27', event: 'DOJ drops charges involving a client tied to AG Pam Bondi\'s family' },
+                { date: '2025-08-27', event: 'Fires CDC Director Susan Monarez' },
+                { date: '2025-08-29', event: 'Cancels VP Kamala Harris Secret Service detail' },
+                { date: '2025-08-29', event: 'Cancels $4.9B in Congressional-authorized foreign aid' },
+                { date: '2025-08-31', event: 'Trump family amasses major wealth from WLFI crypto launch' },
+
+                // September 2025
+                { date: '2025-09-03', event: 'HHS plans a no-bid contract steering vaccine work to a Trump-ally firm' },
+                { date: '2025-09-03', event: 'Calls Epstein scandal "Democrat hoax"' },
+                { date: '2025-09-06', event: 'Posts AI image threatening to deploy ICE/National Guard in Chicago' },
+                { date: '2025-09-09', event: 'Denies writing Epstein birthday letter despite evidence' },
+                { date: '2025-09-11', event: 'Awards posthumous Medal of Freedom to Charlie Kirk' },
+                { date: '2025-09-12', event: 'Announces deploying National Guard to Memphis' },
+                { date: '2025-09-17', event: 'Suspends Jimmy Kimmel Live!' },
+                { date: '2025-09-17', event: 'Reprisals against commentators on the Charlie Kirk assassination begin' },
+                { date: '2025-09-22', event: 'Claims Paracetamol (Tylenol) in pregnancy causes autism' },
+                { date: '2025-09-24', event: 'White House prepares mass federal workforce reduction plan' },
+                { date: '2025-09-25', event: 'DOJ indicts James Comey (second indictment)' },
+                { date: '2025-09-26', event: 'Threatens that political enemies will face prosecution' },
+                { date: '2025-09-27', event: 'Deploys troops to Portland, calls city "war-ravaged"' },
+                { date: '2025-09-30', event: 'Posts AI video attacking Democratic lawmakers' },
+
+                // October 2025
+                { date: '2025-10-01', event: 'Government shutdown begins (will last 43 days)' },
+                { date: '2025-10-01', event: 'OMB freezes $18 billion in NYC infrastructure funding' },
+                { date: '2025-10-02', event: 'Posts AI video depicting Russ Vought as "grim reaper" of government' },
+                { date: '2025-10-03', event: 'OMB freezes $2.1 billion in Chicago infrastructure funding' },
+                { date: '2025-10-03', event: 'Posts AI video throwing "TRUMP 2028" hat at Hakeem Jeffries' },
+                { date: '2025-10-08', event: 'Calls for jailing Illinois officials over Guard deployment resistance' },
+                { date: '2025-10-08', event: 'Announces Israel-Hamas ceasefire deal' },
+                { date: '2025-10-09', event: 'DOJ indicts NY AG Letitia James in Virginia' },
+                { date: '2025-10-10', event: 'Announces 100% tariff on China effective November 1' },
+                { date: '2025-10-11', event: 'Posts rendering of triumphal arch on White House grounds' },
+                { date: '2025-10-12', event: 'Vance announces considering Insurrection Act domestically' },
+                { date: '2025-10-12', event: 'Claims Biden administration put FBI agents in Jan 6 crowd' },
+                { date: '2025-10-13', event: 'Addresses Israeli Knesset' },
+                { date: '2025-10-14', event: 'Hosts a fundraiser dinner for donors financing a White House ballroom project' },
+                { date: '2025-10-14', event: 'DOJ indicts John Bolton' },
+                { date: '2025-10-15', event: 'Pentagon: all press except OANN turn in press badges' },
+                { date: '2025-10-18', event: 'Posts AI video of military jet dropping feces on protestors' },
+                { date: '2025-10-20', event: 'Demands ~$230M from DOJ, effectively seeking taxpayer payment to himself' },
+                { date: '2025-10-21', event: 'Claims personal authority to direct any DOJ payout to himself' },
+                { date: '2025-10-22', event: 'Pardons Binance founder Changpeng Zhao' },
+                { date: '2025-10-22', event: 'Withholds disaster relief from Democratic-led states' },
+                { date: '2025-10-23', event: 'Pentagon accepts private donations to cover troop pay (privatized payroll)' },
+                { date: '2025-10-26', event: 'USDA refuses to distribute November SNAP benefits during shutdown' },
+                { date: '2025-10-27', event: 'Trump family gains ~$800M from crypto sales from Trump-affiliated crypto firm' },
+                { date: '2025-10-27', event: 'Refuses to rule out running for third term' },
+                { date: '2025-10-29', event: 'Rules out third term attempt (after three days of speculation)' },
+                { date: '2025-10-29', event: 'Receives Grand Order of Mugunghwa from South Korea' },
+                { date: '2025-10-29', event: 'Fires all Commission of Fine Arts members' },
+                { date: '2025-10-29', event: 'Kennedy retracts claim that Tylenol causes autism' },
+                { date: '2025-10-31', event: 'Calls for ending Senate filibuster to end shutdown' },
+                { date: '2025-10-31', event: 'Hosts Halloween party with mass shooting theme' },
+
+                // November 2025
+                { date: '2025-11-03', event: 'IRS announces no Direct File option for 2026 tax year' },
+                { date: '2025-11-05', event: 'Shutdown becomes longest in US history (35+ days)' },
+                { date: '2025-11-05', event: 'Provides only 65% of SNAP benefits despite court order' },
+                { date: '2025-11-06', event: 'Announces GLP-1 drug price reduction deal with Eli Lilly and Novo Nordisk' },
+                { date: '2025-11-08', event: 'Posts proposal for 50-year mortgages' },
+                { date: '2025-11-09', event: 'Posts promise of $2,000 "tariff dividend" to every American' },
+                { date: '2025-11-09', event: 'Pardons Rudy Giuliani and Mark Meadows' },
+                { date: '2025-11-09', event: 'Pardons 77 "fake electors" including Giuliani and Meadows' },
+                { date: '2025-11-12', event: 'Government shutdown ends after 43 days' },
+                { date: '2025-11-12', event: 'US Mint strikes final penny for circulation' },
+                { date: '2025-11-12', event: 'Urges Israeli President Herzog to pardon Netanyahu' },
+                { date: '2025-11-13', event: 'State Dept designates 4 European anti-fascist groups as terrorists' },
+                { date: '2025-11-14', event: 'Bondi orders DOJ investigation of Epstein ties to Trump political foes' },
+                { date: '2025-11-14', event: 'Calls Rep. Marjorie Taylor Greene "lunatic" for supporting Epstein files release' },
+                { date: '2025-11-16', event: 'Announces support for House releasing Epstein files (reversal)' },
+                { date: '2025-11-17', event: 'Meets Saudi Crown Prince' },
+                { date: '2025-11-17', event: 'White House intervenes in an Andrew Tate investigation' },
+                { date: '2025-11-17', event: 'Releases 4,600 pages of Amelia Earhart files' },
+                { date: '2025-11-17', event: 'Approves F-35 fighter jet sale to Saudi Arabia' },
+                { date: '2025-11-18', event: 'Calls for revoking ABC broadcast license over Epstein question' },
+                { date: '2025-11-20', event: 'Approves massive offshore oil drilling expansion' },
+                { date: '2025-11-20', event: 'Calls for arresting Democratic lawmakers' },
+                { date: '2025-11-23', event: 'DOGE officially dissolved' },
+                { date: '2025-11-24', event: 'Designates Maduro government as terrorist organization' },
+                { date: '2025-11-26', event: 'Envoy Steve Witkoff caught coaching Kremlin on Ukraine negotiations' },
+                { date: '2025-11-26', event: 'Refuses to commemorate World AIDS Day' },
+                { date: '2025-11-28', event: 'Coerces Northwestern University into $75M settlement over antisemitism probe' },
+                { date: '2025-11-28', event: 'Hegseth ordered Navy SEALs to "kill them all" on suspected drug boats' },
+                { date: '2025-11-30', event: 'Announces pardoning Juan Orlando Hernández (convicted drug trafficker)' },
+
+                // December 2025
+                { date: '2025-12-01', event: 'Hegseth authorized second strike on survivors of first attack' },
+                { date: '2025-12-01', event: 'Noem recommends travel ban for immigrants she calls "killers and leeches"' },
+                { date: '2025-12-01', event: 'Fires 8 New York immigration judges' },
+                { date: '2025-12-04', event: 'Signs Congo-Rwanda peace agreement' },
+                { date: '2025-12-05', event: 'Awarded FIFA Peace Prize' },
+                { date: '2025-12-05', event: 'CDC rolls back hepatitis B vaccine recommendation for newborns' },
+                { date: '2025-12-09', event: 'Clears Nvidia China sales in exchange for a government revenue share' },
+                { date: '2025-12-09', event: 'Launches "$1M gold card" immigration scheme that sells status for cash' },
+                { date: '2025-12-09', event: 'CBP proposes requiring 5 years of social media history from travelers' },
+                { date: '2025-12-10', event: 'Launches Gold Card website charging $1M+ for immigration status' },
+                { date: '2025-12-11', event: 'Interior Department militarizes 760 acres in California' },
+                { date: '2025-12-14', event: 'Remarks on the Killing of Rob and Michele Reiner, death by "Trump Derangement Syndrome"' },
+                { date: '2025-12-15', event: 'Classifies fentanyl as Weapon of Mass Destruction' },
+                { date: '2025-12-16', event: 'Expands travel ban to 20 additional countries + Palestinian Authority' },
+                { date: '2025-12-17', event: 'Announces $1,776 monthly military housing supplement' },
+                { date: '2025-12-17', event: 'Adds partisan plaques to Presidential Walk honoring self' },
+                { date: '2025-12-18', event: 'Announces Patriot Games competition for 2026' },
+                { date: '2025-12-19', event: 'Renames Kennedy Center to "Trump-Kennedy Center"' },
+                { date: '2025-12-22', event: 'Suspends 5 offshore wind energy leases' },
+                { date: '2025-12-22', event: 'DOGE officially shuttered' },
+                { date: '2025-12-29', event: 'Issues first two vetoes of second term (both unanimous bills)' },
+
+                // January 2026
+                { date: '2026-01-02', event: 'Orders US to "rescue" Iranian protesters from government' },
+                { date: '2026-01-03', event: 'Orders "Operation Absolute Resolve" - airstrikes in Caracas' },
+                { date: '2026-01-03', event: 'US special forces capture Venezuelan President Maduro' },
+                { date: '2026-01-03', event: 'Announces US will "run" Venezuela until transition' },
+                { date: '2026-01-04', event: 'Threatens military action against Colombia and Cuba' },
+                { date: '2026-01-05', event: 'HHS reduces childhood vaccine schedule recommendations' },
+                { date: '2026-01-06', event: 'Claims control over revenue from Venezuelan oil sales' },
+                { date: '2026-01-06', event: 'Pauses child care funding to 5 Democratic-led states' },
+                { date: '2026-01-06', event: 'Launches website praising administration\'s January 6 handling' },
+                { date: '2026-01-07', event: 'Seizes Venezuelan oil tanker off Iceland' },
+                { date: '2026-01-07', event: 'Withdraws from IPCC and 65 other international institutions' },
+                { date: '2026-01-08', event: 'Noem restricts congressional visits to detention facilities' },
+                { date: '2026-01-09', event: 'Suspends Minnesota federal benefits over fraud claims' },
+                { date: '2026-01-10', event: 'Federal agents deny Representatives entry to Minneapolis federal building' },
+                { date: '2026-01-12', event: 'Hegseth integrates Musk\'s Grok AI into Pentagon systems' },
+                { date: '2026-01-13', event: 'HHS cuts mental health funding' },
+                { date: '2026-01-13', event: 'Curses at and flips off Ford assembly line worker' },
+                { date: '2026-01-13', event: 'Threatens military strikes on Iran over protester executions' },
+                { date: '2026-01-13', event: 'Ends Temporary Protected Status for Somalis' },
+                { date: '2026-01-14', event: 'Suspends immigrant visas for 75 countries' },
+                { date: '2026-01-14', event: 'Threatens Clintons with contempt charges over Epstein testimony' },
+                { date: '2026-01-15', event: 'First Venezuela oil sale routed to a megadonor\'s company' },
+                { date: '2026-01-15', event: 'Threatens to invoke Insurrection Act in Minneapolis' },
+                { date: '2026-01-15', event: 'Seizes sixth Venezuelan oil tanker in Caribbean' },
+                { date: '2026-01-16', event: 'Buys Netflix/Warner bonds after publicly weighing in on the merger' },
+                { date: '2026-01-16', event: 'Pardons a fraudster after previously granting clemency' },
+                { date: '2026-01-16', event: 'Offers "Board of Peace" seats for a $1B fee' },
+                { date: '2026-01-21', event: 'Davos speech threatens Greenland acquisition, criticizes NATO allies' },
+                { date: '2026-01-23', event: 'Withdraws Bank of England Governor Mark Carney invitation after WEF speech' },
+                { date: '2026-01-23', event: 'Vance announces ending all US funding for diversity and trans programs abroad' },
+                { date: '2026-01-24', event: 'Posts AI image of himself with penguin in Greenland' },
+                { date: '2026-01-24', event: 'Threatens EU with tariffs unless Greenland deal reached' },
+                { date: '2026-01-25', event: 'Hegseth posts "How To Avoid ICE" graphic after third Minneapolis killing' },
+                { date: '2026-01-26', event: 'Nursing home staffing rule repealed after heavy industry donations' },
+                { date: '2026-01-26', event: 'Assigns ICE agents as Olympic delegation bodyguards' },
+                { date: '2026-01-26', event: 'FBI opens investigation of citizens texting ICE raid warnings via Signal' },
+                { date: '2026-01-27', event: 'ICE attempts to enter Ecuador consulate in violation of Vienna Convention' },
+                { date: '2026-01-28', event: 'Threatens "worse attack" on Iran if nuclear deal not reached' },
+                { date: '2026-01-28', event: 'Sells Gold Card to Nicki Minaj for hundreds of thousands of dollars' },
+                { date: '2026-01-28', event: 'ICE agents documented violating nearly 100 court orders' },
+                { date: '2026-01-28', event: 'FBI seizes Georgia 2020 voting records' },
+                { date: '2026-01-28', event: 'Posts conspiracy theories about 2016 and 2020 elections' },
+                { date: '2026-01-29', event: 'Sues IRS and Treasury for $10 billion over tax return leaks' },
+                { date: '2026-01-30', event: 'Releases additional Epstein documents' },
+                { date: '2026-01-30', event: 'Signs EO authorizing DC street race' },
+                { date: '2026-01-31', event: 'Partial government shutdown begins (second in 4 months)' },
+
+                // February 2026
+                { date: '2026-02-01', event: 'TSA begins charging $45 fee for travelers without Real ID' },
+                { date: '2026-02-01', event: 'Expands SNAP work requirements, making benefits harder to access' },
+                { date: '2026-02-01', event: 'Announces Kennedy Center closure for 2 years' },
+                { date: '2026-02-02', event: 'States GOP should "nationalize elections" under federal control' },
+                { date: '2026-02-02', event: 'Signs US-India trade deal' },
+                { date: '2026-02-02', event: 'Launches $12 billion Project Vault for critical minerals' },
+                { date: '2026-02-04', event: 'Begins drawing down 700 ICE agents from Minnesota (2,000 remain)' },
+            ];
+
+            const ratingOptions = [
+                { value: 1, label: 'Very Negative', color: 'bg-red-900 text-white', icon: <AlertCircle className="w-4 h-4" /> },
+                { value: 2, label: 'Negative', color: 'bg-red-500 text-white', icon: <AlertCircle className="w-4 h-4" /> },
+                { value: 3, label: 'Somewhat Negative', color: 'bg-orange-400 text-gray-900', icon: <AlertCircle className="w-4 h-4" /> },
+                { value: 4, label: 'Neutral', color: 'bg-gray-300 text-gray-900', icon: <MinusCircle className="w-4 h-4" /> },
+                { value: 5, label: 'Somewhat Positive', color: 'bg-lime-300 text-gray-900', icon: <CheckCircle className="w-4 h-4" /> },
+                { value: 6, label: 'Positive', color: 'bg-green-400 text-gray-900', icon: <CheckCircle className="w-4 h-4" /> },
+                { value: 7, label: 'Very Positive', color: 'bg-green-700 text-white', icon: <CheckCircle className="w-4 h-4" /> },
+            ];
+
+            const handleRating = (eventKey, rating) => {
+                setUserRatings(prev => ({
+                    ...prev,
+                    [eventKey]: rating
+                }));
+            };
+
+            const getEventKey = (event) => `${event.date}-${event.event}`;
+
+            const allEvents = useMemo(() => {
+                return [...events, ...landmarkEvents.map(e => ({ ...e, isLandmark: true }))]
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+            }, []);
+
+            const filteredEvents = useMemo(() => {
+                return allEvents.filter(event => {
+                    if (event.isLandmark) return true; // Always show landmarks
+
+                    const eventKey = getEventKey(event);
+                    const userRating = userRatings[eventKey];
+
+                    const matchesFilter = filterCategory === 'all' ||
+                                        (filterCategory === 'rated' && userRating !== undefined) ||
+                                        (filterCategory === 'unrated' && userRating === undefined) ||
+                                        (filterCategory !== 'all' && filterCategory !== 'rated' && filterCategory !== 'unrated' && userRating === parseInt(filterCategory));
+
+                    const matchesSearch = event.event.toLowerCase().includes(searchTerm.toLowerCase());
+
+                    return matchesFilter && matchesSearch;
+                });
+            }, [filterCategory, searchTerm, userRatings, allEvents]);
+
+            const statistics = useMemo(() => {
+                const stats = {
+                    total: events.length,
+                    rated: 0,
+                    unrated: 0,
+                    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }
+                };
+
+                events.forEach(event => {
+                    const eventKey = getEventKey(event);
+                    const rating = userRatings[eventKey];
+                    if (rating !== undefined) {
+                        stats.rated++;
+                        stats.distribution[rating]++;
+                    } else {
+                        stats.unrated++;
+                    }
+                });
+
+                return stats;
+            }, [userRatings]);
+
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            };
+
+            const getRatingColor = (rating) => {
+                const option = ratingOptions.find(opt => opt.value === rating);
+                return option ? option.color : 'bg-gray-200';
+            };
+
+            const clearAllRatings = () => {
+                if (window.confirm('Are you sure you want to clear all your ratings? This cannot be undone.')) {
+                    setUserRatings({});
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-4">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                                Trump Administration Timeline - Complete Edition
+                            </h1>
+                            <p className="text-gray-600 mb-4">
+                                Grade each Trump administration action based on your own judgment. Landmark events are shown for context.
+                            </p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                                <div className="bg-blue-100 p-4 rounded text-center">
+                                    <div className="font-bold text-2xl text-blue-900">{statistics.total}</div>
+                                    <div className="text-sm text-blue-700">Total Actions</div>
+                                </div>
+                                <div className="bg-green-100 p-4 rounded text-center">
+                                    <div className="font-bold text-2xl text-green-900">{statistics.rated}</div>
+                                    <div className="text-sm text-green-700">Rated</div>
+                                </div>
+                                <div className="bg-orange-100 p-4 rounded text-center">
+                                    <div className="font-bold text-2xl text-orange-900">{statistics.unrated}</div>
+                                    <div className="text-sm text-orange-700">Unrated</div>
+                                </div>
+                                <div className="bg-purple-100 p-4 rounded text-center">
+                                    <div className="font-bold text-2xl text-purple-900">
+                                        {statistics.rated > 0 ? ((statistics.rated / statistics.total) * 100).toFixed(0) : 0}%
+                                    </div>
+                                    <div className="text-sm text-purple-700">Complete</div>
+                                </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <h3 className="font-semibold mb-2">Your Rating Distribution:</h3>
+                                <div className="grid grid-cols-7 gap-2">
+                                    {ratingOptions.map(option => (
+                                        <div key={option.value} className={`${option.color} p-2 rounded text-center`}>
+                                            <div className="font-bold">{statistics.distribution[option.value]}</div>
+                                            <div className="text-xs">{option.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search events..."
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <button
+                                    onClick={() => setFilterCategory('all')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                        filterCategory === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    All Events
+                                </button>
+                                <button
+                                    onClick={() => setFilterCategory('rated')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                        filterCategory === 'rated' ? 'bg-green-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    Rated Only
+                                </button>
+                                <button
+                                    onClick={() => setFilterCategory('unrated')}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                        filterCategory === 'unrated' ? 'bg-orange-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    Unrated Only
+                                </button>
+                                {ratingOptions.map(option => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => setFilterCategory(option.value.toString())}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            filterCategory === option.value.toString() ? option.color + ' ring-2 ring-blue-500' : option.color + ' opacity-60 hover:opacity-100'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={clearAllRatings}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                                Clear All Ratings
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {filteredEvents.map((event, idx) => {
+                                if (event.isLandmark) {
+                                    // Landmark event - narrower, protrudes to the side, no rating
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className="relative"
+                                        >
+                                            <div className="absolute left-0 w-2 h-full bg-gray-400 rounded-l"></div>
+                                            <div className="ml-4 bg-gray-200 rounded-r-lg p-3 shadow-sm border-l-4 border-gray-400">
+                                                <div className="flex items-center gap-2">
+                                                    <Landmark className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                                                    <div className="flex-1">
+                                                        <div className="text-xs font-semibold text-gray-500">
+                                                            {formatDate(event.date)}
+                                                        </div>
+                                                        <div className="text-sm font-medium text-gray-700 italic">
+                                                            {event.event}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                // Regular event - full width, ratable
+                                const eventKey = getEventKey(event);
+                                const currentRating = userRatings[eventKey];
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`${
+                                            currentRating ? getRatingColor(currentRating) : 'bg-white'
+                                        } rounded-lg p-4 shadow-md transition-all hover:shadow-lg`}
+                                    >
+                                        <div className="mb-3">
+                                            <div className="text-sm font-semibold text-gray-600 mb-1">
+                                                {formatDate(event.date)}
+                                            </div>
+                                            <div className="font-bold text-lg">
+                                                {event.event}
+                                            </div>
+                                        </div>
+
+                                        <div className="border-t pt-3">
+                                            <div className="text-sm font-semibold mb-2">Rate this action:</div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {ratingOptions.map(option => (
+                                                    <button
+                                                        key={option.value}
+                                                        onClick={() => handleRating(eventKey, option.value)}
+                                                        className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                                                            currentRating === option.value
+                                                                ? option.color + ' ring-2 ring-blue-600'
+                                                                : option.color + ' opacity-50 hover:opacity-100'
+                                                        }`}
+                                                    >
+                                                        {option.icon}
+                                                        <span className="text-xs">{option.value}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {filteredEvents.length === 0 && (
+                            <div className="text-center py-12 text-gray-500 bg-white rounded-lg">
+                                No events found matching your criteria.
+                            </div>
+                        )}
+
+                        <div className="mt-8 p-6 bg-blue-50 rounded-lg text-sm text-gray-700">
+                            <h3 className="font-semibold mb-3 text-lg">How to Use This Tool:</h3>
+                            <ul className="space-y-2 list-disc list-inside">
+                                <li><strong>Grade Trump admin actions:</strong> Click one of the 7 rating buttons (1 = Very Negative, 7 = Very Positive)</li>
+                                <li><strong>Landmark events:</strong> Gray events with landmark icons show context (plane crashes, assassinations, etc.) but cannot be rated</li>
+                                <li><strong>Your criteria:</strong> You decide what makes something positive or negative based on your values</li>
+                                <li><strong>Complete coverage:</strong> {events.length} Trump administration actions from Jan 20, 2025 - Feb 4, 2026</li>
+                                <li><strong>Data saved locally:</strong> Your ratings persist in your browser between sessions</li>
+                            </ul>
+
+                            <div className="mt-4 pt-4 border-t border-blue-200">
+                                <p className="font-semibold mb-2">Rating Scale:</p>
+                                <div className="grid grid-cols-1 md:grid-cols-7 gap-2 text-xs">
+                                    {ratingOptions.map(option => (
+                                        <div key={option.value} className={`${option.color} p-2 rounded text-center`}>
+                                            <div className="font-bold">{option.value}</div>
+                                            <div>{option.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the component
+        ReactDOM.render(<TrumpTimelineComplete />, document.getElementById('root'));
+    </script>
+</body>
+</html>
