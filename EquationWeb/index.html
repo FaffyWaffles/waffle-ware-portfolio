@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EquationWeb — The Interconnected Web of Physical Laws</title>
+    <meta name="description" content="An interactive D3.js visualization mapping every physical equation across all fields of science, revealing hidden connections through shared variables and fundamental constants of the universe.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚛</text></svg>">
+
+    <!-- KaTeX for equation rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+          crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+            crossorigin="anonymous"></script>
+
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="app">
+
+        <!-- ─── Top Bar ───────────────────────────────────────────── -->
+        <header id="top-bar">
+            <div class="logo">⚛ <span>EquationWeb</span></div>
+            <div class="search-container">
+                <input type="text" id="search"
+                       placeholder="Search equations, variables, constants… ( / )"
+                       autocomplete="off" spellcheck="false">
+            </div>
+            <div class="stats" id="stats"></div>
+        </header>
+
+        <!-- ─── Main Content ──────────────────────────────────────── -->
+        <div class="main-content">
+
+            <!-- Sidebar -->
+            <aside id="sidebar">
+
+                <div class="sidebar-section">
+                    <h3>Scientific Fields</h3>
+                    <div class="field-controls">
+                        <button class="field-control-btn" id="select-all-fields">All</button>
+                        <button class="field-control-btn" id="deselect-all-fields">None</button>
+                    </div>
+                    <div id="field-filters"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>View Mode</h3>
+                    <div id="view-modes">
+                        <label><input type="radio" name="view" value="all" checked> Full Web</label>
+                        <label><input type="radio" name="view" value="constants"> Constants Bridge</label>
+                        <label><input type="radio" name="view" value="equations"> Equations Only</label>
+                        <label><input type="radio" name="view" value="bridges"> Cross-Field Bridges</label>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Node Size</h3>
+                    <label><input type="radio" name="sizing" value="fixed" checked> Fixed</label>
+                    <label><input type="radio" name="sizing" value="connections"> By Connections</label>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Equation Form</h3>
+                    <div id="form-modes">
+                        <label><input type="radio" name="form-mode" value="standard" checked> Standard</label>
+                        <label><input type="radio" name="form-mode" value="differential"> ∂ Calculus</label>
+                        <label><input type="radio" name="form-mode" value="integral"> ∫ Integral</label>
+                        <label><input type="radio" name="form-mode" value="vector"> → Vector</label>
+                    </div>
+                    <div class="form-hint">Switches labels for equations that have alternative forms</div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Status & Taxonomy</h3>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-accuracy" checked>
+                        <span>Show status indicators</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-supersession" checked>
+                        <span>Show relationship links</span>
+                    </label>
+                    <div class="conn-mode-group">
+                        <div class="legend-group-label">Connection Mode</div>
+                        <label><input type="radio" name="conn-mode" value="variables" checked> Via Variables</label>
+                        <label><input type="radio" name="conn-mode" value="direct"> Direct Links</label>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-labels" checked>
+                        <span>Show labels</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-curves" checked>
+                        <span>Curved edges</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-hierarchy" checked>
+                        <span>Hierarchical layout</span>
+                    </label>
+                    <div class="accuracy-legend">
+                        <div class="legend-group-label">Equation Status</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-postulate">✦</span> Postulate</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-derived">⊢</span> Derived</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-solution">◉</span> Solution</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-approx">≈</span> Approximation</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-empirical">⚗</span> Empirical</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-definition">≡</span> Definition</div>
+                        <div class="legend-group-label" style="margin-top:8px">Relationships</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-link">╌╌→</span> Generalizes</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-equiv">──</span> Equivalent</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-incompat">┄┄</span> Incompatible</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-derives">╌·→</span> Derives From</div>
+                        <div class="accuracy-legend-item"><span class="al-icon al-component">──</span> Component Of</div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>⚠ Data Quality</h3>
+                    <div id="data-quality"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>⚙ Simulation Physics</h3>
+                    <div class="sim-sliders">
+                        <div class="sim-slider-row">
+                            <label>Repulsion</label>
+                            <input type="range" id="sim-repulsion" min="0.1" max="3" step="0.05" value="1">
+                            <span class="sim-val" id="sim-repulsion-val">1.0×</span>
+                        </div>
+                        <div class="sim-slider-row">
+                            <label>Link Distance</label>
+                            <input type="range" id="sim-link-dist" min="0.2" max="3" step="0.05" value="1">
+                            <span class="sim-val" id="sim-link-dist-val">1.0×</span>
+                        </div>
+                        <div class="sim-slider-row">
+                            <label>Link Strength</label>
+                            <input type="range" id="sim-link-str" min="0.1" max="3" step="0.05" value="1">
+                            <span class="sim-val" id="sim-link-str-val">1.0×</span>
+                        </div>
+                        <div class="sim-slider-row">
+                            <label>Gravity</label>
+                            <input type="range" id="sim-gravity" min="0" max="0.1" step="0.002" value="0.015">
+                            <span class="sim-val" id="sim-gravity-val">0.015</span>
+                        </div>
+                        <div class="sim-slider-row">
+                            <label>Friction</label>
+                            <input type="range" id="sim-decay" min="0.05" max="0.8" step="0.01" value="0.35">
+                            <span class="sim-val" id="sim-decay-val">0.35</span>
+                        </div>
+                        <button id="sim-reset" class="sim-reset-btn">Reset Defaults</button>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>⬥ Constants by Connectivity</h3>
+                    <div id="top-constants"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Timeline</h3>
+                    <div class="timeline-control">
+                        <input type="range" id="timeline-slider" min="-300" max="2030" value="2030" step="1">
+                        <div class="timeline-labels">
+                            <span id="timeline-year">All Time</span>
+                            <button id="timeline-reset" class="field-control-btn" title="Reset">↺</button>
+                        </div>
+                        <div class="timeline-range-labels">
+                            <span>300 BCE</span>
+                            <span>2030</span>
+                        </div>
+                    </div>
+                    <div class="timeline-controls-row">
+                        <button id="timeline-play" class="field-control-btn" title="Animate through time">▶ Play</button>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- Graph Area -->
+            <main id="graph-container">
+                <svg id="graph"></svg>
+
+                <!-- Minimap -->
+                <div id="minimap">
+                    <svg id="minimap-svg"></svg>
+                </div>
+
+                <!-- Detail Panel (overlays graph) -->
+                <div id="detail-panel" class="hidden">
+                    <button id="close-detail" title="Close (Esc)">&times;</button>
+                    <div id="detail-content"></div>
+                </div>
+
+                <!-- Legend -->
+                <div id="legend">
+                    <span class="legend-item"><span class="legend-dot equation"></span> Equation</span>
+                    <span class="legend-item"><span class="legend-dot constant"></span> Constant</span>
+                    <span class="legend-item"><span class="legend-dot variable"></span> Variable</span>
+                    <span class="legend-item"><span class="legend-line generalizes"></span> Generalizes</span>
+                    <span class="legend-item"><span class="legend-line equivalent"></span> Equivalent</span>
+                    <span class="legend-item"><span class="legend-line incompatible"></span> Incompatible</span>
+                    <span class="legend-item"><span class="legend-line derives-from"></span> Derives</span>
+                    <span class="legend-item"><span class="legend-line component-of"></span> System</span>
+                </div>
+
+                <!-- Keyboard hints -->
+                <div class="keyboard-hints">
+                    <kbd>/</kbd> Search &nbsp; <kbd>Esc</kbd> Reset &nbsp; <kbd>Scroll</kbd> Zoom &nbsp; <kbd>Space</kbd> Play Timeline &nbsp; <kbd>Shift+Click</kbd> Multi-select
+                </div>
+            </main>
+
+        </div>
+
+        <!-- Tooltip (follows mouse) -->
+        <div id="tooltip"></div>
+
+    </div>
+
+    <!-- Data & Application -->
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
