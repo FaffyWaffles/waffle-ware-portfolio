@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhysCalculator - Waffle Ware</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg: #09111f;
+            --bg-soft: rgba(13, 25, 46, 0.82);
+            --panel: rgba(16, 31, 58, 0.88);
+            --panel-strong: rgba(19, 37, 68, 0.96);
+            --line: rgba(155, 208, 255, 0.18);
+            --text: #e7f2ff;
+            --muted: #8ea6c7;
+            --accent: #57d4ff;
+            --accent-2: #8cffb2;
+            --warn: #ffd27c;
+            --danger: #ff9a9a;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background:
+                radial-gradient(circle at top left, rgba(87, 212, 255, 0.16), transparent 32%),
+                radial-gradient(circle at top right, rgba(140, 255, 178, 0.12), transparent 25%),
+                linear-gradient(180deg, #07101c 0%, #09111f 45%, #0c1630 100%);
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: auto;
+            width: 28rem;
+            height: 28rem;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(70px);
+            opacity: 0.35;
+        }
+
+        body::before {
+            top: -9rem;
+            right: -8rem;
+            background: rgba(87, 212, 255, 0.18);
+        }
+
+        body::after {
+            left: -10rem;
+            bottom: -10rem;
+            background: rgba(90, 134, 255, 0.16);
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .shell {
+            position: relative;
+            z-index: 1;
+            width: min(1400px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 24px 0 48px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            background: rgba(8, 16, 30, 0.74);
+            border-radius: 999px;
+            text-decoration: none;
+            color: var(--accent);
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .back-link:hover {
+            transform: translateY(-1px);
+            background: rgba(14, 28, 49, 0.9);
+            border-color: rgba(87, 212, 255, 0.32);
+        }
+
+        .hero,
+        .panel {
+            background: var(--bg-soft);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .hero {
+            overflow: hidden;
+            position: relative;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(120deg, rgba(87, 212, 255, 0.14), transparent 42%),
+                linear-gradient(300deg, rgba(140, 255, 178, 0.08), transparent 30%);
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-block;
+            margin-bottom: 12px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(87, 212, 255, 0.12);
+            color: var(--accent);
+            font-size: 0.84rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(2.2rem, 4vw, 4rem);
+            line-height: 0.95;
+            max-width: 10ch;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 74ch;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            align-items: end;
+        }
+
+        .hero-stats {
+            display: grid;
+            gap: 12px;
+        }
+
+        .stat-card {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(10, 21, 41, 0.74);
+            border: 1px solid rgba(155, 208, 255, 0.12);
+        }
+
+        .stat-card strong {
+            display: block;
+            font-size: 1.5rem;
+            color: var(--accent-2);
+        }
+
+        .stat-card span {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.45fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            padding: 20px;
+        }
+
+        .panel h2,
+        .panel h3 {
+            margin: 0 0 14px;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .panel-head p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(155, 208, 255, 0.16);
+            background: rgba(8, 17, 34, 0.66);
+            color: var(--muted);
+            font-size: 0.84rem;
+            white-space: nowrap;
+        }
+
+        .control-stack {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.92rem;
+            color: var(--muted);
+        }
+
+        select,
+        input,
+        button,
+        textarea {
+            font: inherit;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 12px 13px;
+            border-radius: 14px;
+            border: 1px solid rgba(155, 208, 255, 0.14);
+            background: rgba(8, 16, 30, 0.88);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+        }
+
+        select:focus,
+        input:focus {
+            border-color: rgba(87, 212, 255, 0.42);
+            transform: translateY(-1px);
+            background: rgba(10, 21, 38, 0.96);
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #57d4ff 0%, #6fffb4 100%);
+            color: #032338;
+            font-weight: 700;
+            box-shadow: 0 12px 30px rgba(87, 212, 255, 0.24);
+        }
+
+        .button-secondary {
+            background: rgba(10, 20, 39, 0.82);
+            color: var(--text);
+            border: 1px solid rgba(155, 208, 255, 0.14);
+        }
+
+        .problem-copy {
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(8, 17, 32, 0.66);
+            border: 1px solid rgba(155, 208, 255, 0.1);
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 16px;
+            white-space: pre-wrap;
+        }
+
+        .input-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1.25fr minmax(120px, 1fr) minmax(110px, 0.9fr);
+            gap: 10px;
+            padding: 12px;
+            border-radius: 18px;
+            background: rgba(9, 18, 36, 0.66);
+            border: 1px solid rgba(155, 208, 255, 0.09);
+        }
+
+        .input-row.disabled {
+            opacity: 0.55;
+        }
+
+        .field-meta {
+            display: flex;
+            gap: 10px;
+            align-items: start;
+        }
+
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-wrap input {
+            width: 18px;
+            height: 18px;
+            accent-color: #57d4ff;
+            padding: 0;
+        }
+
+        .field-name {
+            font-weight: 600;
+        }
+
+        .field-desc {
+            margin-top: 4px;
+            font-size: 0.84rem;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 12px;
+        }
+
+        .result-card {
+            padding: 14px;
+            border-radius: 18px;
+            background: rgba(8, 16, 31, 0.72);
+            border: 1px solid rgba(155, 208, 255, 0.12);
+        }
+
+        .result-card.target {
+            border-color: rgba(87, 212, 255, 0.35);
+            box-shadow: inset 0 0 0 1px rgba(87, 212, 255, 0.18);
+        }
+
+        .result-card .name {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .result-card .value {
+            margin-top: 8px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.06rem;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        .badge {
+            display: inline-flex;
+            margin-top: 10px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            background: rgba(87, 212, 255, 0.1);
+            color: var(--accent);
+        }
+
+        .steps {
+            display: grid;
+            gap: 10px;
+        }
+
+        .step {
+            padding: 12px 14px;
+            border-left: 2px solid rgba(87, 212, 255, 0.4);
+            border-radius: 0 14px 14px 0;
+            background: rgba(8, 16, 31, 0.6);
+        }
+
+        .step strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .step span {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .info-callout,
+        .error-callout {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            line-height: 1.55;
+        }
+
+        .info-callout {
+            background: rgba(87, 212, 255, 0.08);
+            color: var(--muted);
+            border: 1px solid rgba(87, 212, 255, 0.14);
+        }
+
+        .error-callout {
+            background: rgba(255, 154, 154, 0.08);
+            color: #ffd8d8;
+            border: 1px solid rgba(255, 154, 154, 0.16);
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 1100px) {
+            .hero-grid,
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .shell {
+                width: min(100% - 20px, 1400px);
+                padding-top: 14px;
+            }
+
+            .hero,
+            .panel {
+                border-radius: 20px;
+                padding: 16px;
+            }
+
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            h1 {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="topbar">
+            <a class="back-link" href="index.html">&larr; Back to portfolio</a>
+            <div class="pill">Modular unit-aware solver for sets 1 to 3</div>
+        </div>
+
+        <section class="hero">
+            <div class="hero-grid">
+                <div>
+                    <div class="eyebrow">Physics Problem Engine</div>
+                    <h1>PhysCalculator</h1>
+                    <p>
+                        This page is built around reusable equations instead of one-off answers. Pick a problem preset,
+                        mark the values you know, choose the units you want to work in, and the solver will derive what it
+                        can from the relevant physics relationships. The presets cover the full list you provided across
+                        electromagnetism, photoelectric effect, Compton scattering, atomic physics, de Broglie waves,
+                        uncertainty, and particle-in-a-box problems.
+                    </p>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-card">
+                        <strong id="problemCount">36</strong>
+                        <span>Preset problems mapped to reusable formula sets</span>
+                    </div>
+                    <div class="stat-card">
+                        <strong>Unit aware</strong>
+                        <span>Lengths, fields, energies, momentum, angles, mass, charge, and more</span>
+                    </div>
+                    <div class="stat-card">
+                        <strong>Rearranged</strong>
+                        <span>Each preset includes direct solve paths for the main variable variations it needs</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="layout">
+            <section class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>Problem Setup</h2>
+                        <p>Select a preset, restore the original givens, then toggle and edit fields as needed.</p>
+                    </div>
+                    <div class="pill" id="setBadge">Set 1</div>
+                </div>
+
+                <div class="control-stack">
+                    <div>
+                        <label for="problemSelect">Problem preset</label>
+                        <select id="problemSelect"></select>
+                    </div>
+                    <div>
+                        <label for="targetSelect">Target result</label>
+                        <select id="targetSelect"></select>
+                    </div>
+                    <div>
+                        <label for="targetUnitSelect">Target output unit</label>
+                        <select id="targetUnitSelect"></select>
+                    </div>
+                </div>
+
+                <div class="button-row" style="margin-bottom: 16px;">
+                    <button class="button-primary" id="solveButton">Solve current preset</button>
+                    <button class="button-secondary" id="restoreButton">Restore preset values</button>
+                    <button class="button-secondary" id="clearButton">Clear active inputs</button>
+                </div>
+
+                <div class="problem-copy" id="problemStatement"></div>
+
+                <h3>Known Inputs</h3>
+                <div class="input-grid" id="inputGrid"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>Computed Results</h2>
+                        <p>The solver iterates through the selected preset's formula network and reports all reachable quantities.</p>
+                    </div>
+                    <div class="pill" id="targetBadge">Target: --</div>
+                </div>
+
+                <div class="results-grid" id="resultsGrid"></div>
+                <div class="info-callout" id="statusBox">
+                    Choose a preset and click solve. You can leave unused fields switched off.
+                </div>
+
+                <h3 style="margin-top: 18px;">Derivation Steps</h3>
+                <div class="steps" id="stepsBox"></div>
+
+                <div class="footer-note">
+                    Notes: several presets use standard approximations from introductory modern physics.
+                    Examples include nonrelativistic kinetic energy where the original problem framing implies it,
+                    the integrated Rutherford count relation for problem 16, and the usual threshold formulas for pair production.
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const PHYSICS = {
+            c: 299792458,
+            h: 6.62607015e-34,
+            hbar: 1.054571817e-34,
+            e: 1.602176634e-19,
+            me: 9.1093837015e-31,
+            mp: 1.67262192369e-27,
+            mn: 1.67492749804e-27,
+            epsilon0: 8.8541878128e-12,
+            k: 8.9875517923e9,
+            a0: 5.29177210903e-11,
+            alpha: 7.2973525693e-3,
+            rydbergEV: 13.6
+        };
+
+        const DIMENSIONS = {
+            dimensionless: {
+                baseUnit: '1',
+                units: {
+                    '1': { toBase: (value) => value, fromBase: (value) => value }
+                }
+            },
+            length: {
+                baseUnit: 'm',
+                units: {
+                    m: factorUnit(1),
+                    cm: factorUnit(1e-2),
+                    mm: factorUnit(1e-3),
+                    um: factorUnit(1e-6),
+                    nm: factorUnit(1e-9),
+                    pm: factorUnit(1e-12),
+                    fm: factorUnit(1e-15)
+                }
+            },
+            velocity: {
+                baseUnit: 'm/s',
+                units: {
+                    'm/s': factorUnit(1),
+                    'km/s': factorUnit(1e3),
+                    c: factorUnit(PHYSICS.c)
+                }
+            },
+            acceleration: {
+                baseUnit: 'm/s^2',
+                units: {
+                    'm/s^2': factorUnit(1)
+                }
+            },
+            time: {
+                baseUnit: 's',
+                units: {
+                    s: factorUnit(1),
+                    ms: factorUnit(1e-3),
+                    us: factorUnit(1e-6),
+                    ns: factorUnit(1e-9)
+                }
+            },
+            potential: {
+                baseUnit: 'V',
+                units: {
+                    V: factorUnit(1),
+                    kV: factorUnit(1e3),
+                    MV: factorUnit(1e6)
+                }
+            },
+            electricField: {
+                baseUnit: 'V/m',
+                units: {
+                    'V/m': factorUnit(1),
+                    'kV/m': factorUnit(1e3),
+                    'MV/m': factorUnit(1e6)
+                }
+            },
+            magneticField: {
+                baseUnit: 'T',
+                units: {
+                    T: factorUnit(1),
+                    mT: factorUnit(1e-3),
+                    uT: factorUnit(1e-6)
+                }
+            },
+            energy: {
+                baseUnit: 'J',
+                units: {
+                    J: factorUnit(1),
+                    eV: factorUnit(PHYSICS.e),
+                    keV: factorUnit(1e3 * PHYSICS.e),
+                    MeV: factorUnit(1e6 * PHYSICS.e),
+                    GeV: factorUnit(1e9 * PHYSICS.e)
+                }
+            },
+            momentum: {
+                baseUnit: 'kg*m/s',
+                units: {
+                    'kg*m/s': factorUnit(1),
+                    'eV/c': {
+                        toBase: (value) => (value * PHYSICS.e) / PHYSICS.c,
+                        fromBase: (value) => (value * PHYSICS.c) / PHYSICS.e
+                    },
+                    'keV/c': {
+                        toBase: (value) => (value * 1e3 * PHYSICS.e) / PHYSICS.c,
+                        fromBase: (value) => (value * PHYSICS.c) / (1e3 * PHYSICS.e)
+                    },
+                    'MeV/c': {
+                        toBase: (value) => (value * 1e6 * PHYSICS.e) / PHYSICS.c,
+                        fromBase: (value) => (value * PHYSICS.c) / (1e6 * PHYSICS.e)
+                    }
+                }
+            },
+            mass: {
+                baseUnit: 'kg',
+                units: {
+                    kg: factorUnit(1),
+                    g: factorUnit(1e-3),
+                    u: factorUnit(1.66053906660e-27),
+                    'eV/c^2': {
+                        toBase: (value) => (value * PHYSICS.e) / (PHYSICS.c * PHYSICS.c),
+                        fromBase: (value) => (value * PHYSICS.c * PHYSICS.c) / PHYSICS.e
+                    },
+                    'keV/c^2': {
+                        toBase: (value) => (value * 1e3 * PHYSICS.e) / (PHYSICS.c * PHYSICS.c),
+                        fromBase: (value) => (value * PHYSICS.c * PHYSICS.c) / (1e3 * PHYSICS.e)
+                    },
+                    'MeV/c^2': {
+                        toBase: (value) => (value * 1e6 * PHYSICS.e) / (PHYSICS.c * PHYSICS.c),
+                        fromBase: (value) => (value * PHYSICS.c * PHYSICS.c) / (1e6 * PHYSICS.e)
+                    }
+                }
+            },
+            angle: {
+                baseUnit: 'rad',
+                units: {
+                    rad: factorUnit(1),
+                    deg: {
+                        toBase: (value) => (value * Math.PI) / 180,
+                        fromBase: (value) => (value * 180) / Math.PI
+                    }
+                }
+            },
+            frequency: {
+                baseUnit: 'Hz',
+                units: {
+                    Hz: factorUnit(1),
+                    kHz: factorUnit(1e3),
+                    MHz: factorUnit(1e6),
+                    THz: factorUnit(1e12)
+                }
+            },
+            charge: {
+                baseUnit: 'C',
+                units: {
+                    C: factorUnit(1),
+                    mC: factorUnit(1e-3),
+                    uC: factorUnit(1e-6),
+                    nC: factorUnit(1e-9),
+                    pC: factorUnit(1e-12),
+                    e: factorUnit(PHYSICS.e)
+                }
+            },
+            chargeToMass: {
+                baseUnit: 'C/kg',
+                units: {
+                    'C/kg': factorUnit(1)
+                }
+            },
+            force: {
+                baseUnit: 'N',
+                units: {
+                    N: factorUnit(1)
+                }
+            },
+            angularMomentum: {
+                baseUnit: 'J*s',
+                units: {
+                    'J*s': factorUnit(1)
+                }
+            },
+            power: {
+                baseUnit: 'W',
+                units: {
+                    W: factorUnit(1)
+                }
+            },
+            count: {
+                baseUnit: 'count',
+                units: {
+                    count: factorUnit(1)
+                }
+            }
+        };
+
+        const VARIABLES = {
+            potentialDifference: variableMeta('Potential difference', 'potential', 'Accelerating potential difference'),
+            magneticField: variableMeta('Magnetic field', 'magneticField', 'Uniform magnetic field magnitude'),
+            pathRadius: variableMeta('Path radius', 'length', 'Circular or curved path radius'),
+            chargeToMass: variableMeta('Charge-to-mass ratio', 'chargeToMass', 'q/m of the particle'),
+            particleSpeed: variableMeta('Particle speed', 'velocity', 'Speed of the particle'),
+            electricField: variableMeta('Electric field', 'electricField', 'Uniform electric field magnitude'),
+            acceleratingVoltage: variableMeta('Accelerating voltage', 'potential', 'Voltage used to accelerate electrons or ions'),
+            plateSeparation: variableMeta('Plate separation', 'length', 'Distance between deflecting plates'),
+            plateLength: variableMeta('Plate length', 'length', 'Length of the deflecting plate region'),
+            plateVoltage: variableMeta('Plate voltage', 'potential', 'Potential applied across the plates'),
+            verticalDeflection: variableMeta('Vertical deflection', 'length', 'Deflection at the end of the field region'),
+            magneticPathLength: variableMeta('Field path length', 'length', 'Distance traveled inside a short magnetic field region'),
+            deflectionAngle: variableMeta('Deflection angle', 'angle', 'Small-angle magnetic or scattering deflection'),
+            wavelength: variableMeta('Wavelength', 'length', 'Incident or emitted wavelength'),
+            workFunction: variableMeta('Work function', 'energy', 'Material work function'),
+            maxKineticEnergy: variableMeta('Maximum kinetic energy', 'energy', 'Maximum electron kinetic energy'),
+            thresholdWavelength: variableMeta('Threshold wavelength', 'length', 'Photoelectric threshold wavelength'),
+            sphereDiameter: variableMeta('Sphere diameter', 'length', 'Diameter of an isolated metal sphere'),
+            sphereRadius: variableMeta('Sphere radius', 'length', 'Radius of an isolated metal sphere'),
+            spherePotential: variableMeta('Sphere potential', 'potential', 'Surface potential after charging'),
+            sphereCharge: variableMeta('Sphere charge', 'charge', 'Net induced charge on the sphere'),
+            photonMomentum: variableMeta('Photon momentum', 'momentum', 'Momentum of a photon or particle'),
+            photonEnergy: variableMeta('Photon energy', 'energy', 'Photon energy'),
+            photonPotentialForMomentum: variableMeta('Photon-producing potential', 'potential', 'Minimum electron accelerating potential for an x-ray photon'),
+            electronPotentialForMomentum: variableMeta('Electron momentum potential', 'potential', 'Potential required for an electron to reach a target momentum'),
+            incidentPhotonWavelength: variableMeta('Incident photon wavelength', 'length', 'Wavelength of the incident photon'),
+            scatteredPhotonWavelength: variableMeta('Scattered photon wavelength', 'length', 'Wavelength after Compton scattering'),
+            incidentPhotonEnergy: variableMeta('Incident photon energy', 'energy', 'Incoming photon energy'),
+            scatteredPhotonEnergy: variableMeta('Scattered photon energy', 'energy', 'Outgoing photon energy'),
+            scatteredElectronKineticEnergy: variableMeta('Scattered electron kinetic energy', 'energy', 'Kinetic energy of the recoil electron'),
+            recoilAngle: variableMeta('Recoil angle', 'angle', 'Angle of the scattered electron'),
+            energyRatio: variableMeta('Energy ratio', 'dimensionless', 'Dimensionless ratio used by the preset'),
+            pairProductionThreshold: variableMeta('Pair-production threshold', 'energy', 'Minimum photon energy'),
+            referenceScatterCount: variableMeta('Reference scattered count', 'count', 'Count above the reference angle'),
+            referenceAngle: variableMeta('Reference angle', 'angle', 'Reference scattering angle'),
+            scatterAngleMin: variableMeta('Range minimum angle', 'angle', 'Lower bound of the angle band'),
+            scatterAngleMax: variableMeta('Range maximum angle', 'angle', 'Upper bound of the angle band'),
+            scatterBandCount: variableMeta('Count in angle band', 'count', 'Count scattered within a specific angle band'),
+            areaRatio: variableMeta('Area ratio', 'dimensionless', 'Ratio of two cross-sectional areas'),
+            atomRadius: variableMeta('Atomic radius', 'length', 'Radius of the atom'),
+            nucleusRadius: variableMeta('Nuclear radius', 'length', 'Radius of the nucleus'),
+            orbitRadius: variableMeta('Orbital radius', 'length', 'Initial orbital radius'),
+            crashTime: variableMeta('Crash time', 'time', 'Classical orbital decay time'),
+            collisionSpeed: variableMeta('Collision speed', 'velocity', 'Speed before the collision'),
+            hydrogenMass: variableMeta('Hydrogen atom mass', 'mass', 'Mass used for the hydrogen collision model'),
+            excitationEnergy: variableMeta('Excitation energy', 'energy', 'Excitation energy per atom'),
+            principalQuantumNumber: variableMeta('Principal quantum number', 'dimensionless', 'Bohr orbit quantum number n'),
+            angularMomentum: variableMeta('Angular momentum', 'angularMomentum', 'Bohr angular momentum'),
+            linearMomentum: variableMeta('Linear momentum', 'momentum', 'Particle linear momentum'),
+            orbitalForce: variableMeta('Orbital force', 'force', 'Coulomb force in a Bohr orbit'),
+            lifetime: variableMeta('Lifetime', 'time', 'Time before decay'),
+            revolutions: variableMeta('Number of revolutions', 'dimensionless', 'Orbit count before decay'),
+            atomicNumber1: variableMeta('Atomic number 1', 'dimensionless', 'First atomic number for a ratio'),
+            atomicNumber2: variableMeta('Atomic number 2', 'dimensionless', 'Second atomic number for a ratio'),
+            frequencyRatio: variableMeta('Frequency ratio', 'dimensionless', 'Ratio of line frequencies'),
+            atomicNumber: variableMeta('Atomic number', 'dimensionless', 'Atomic number Z'),
+            maxCharacteristicXrayEnergy: variableMeta('Maximum characteristic x-ray energy', 'energy', 'Upper estimate for K-shell characteristic energy'),
+            electronKineticEnergy: variableMeta('Electron kinetic energy', 'energy', 'Kinetic energy of an electron'),
+            energyComparisonRatio: variableMeta('Energy comparison ratio', 'dimensionless', 'Ratio between two energies'),
+            deBroglieWavelength: variableMeta('de Broglie wavelength', 'length', 'Matter-wave wavelength'),
+            phaseVelocity: variableMeta('Phase velocity', 'velocity', 'Wave phase velocity'),
+            groupVelocity: variableMeta('Group velocity', 'velocity', 'Wave group velocity'),
+            waveNumber: variableMeta('Wave number', 'dimensionless', 'Spatial wave number in rad/m'),
+            angularFrequency: variableMeta('Angular frequency', 'frequency', 'Angular frequency in rad/s'),
+            waveFrequency: variableMeta('Frequency', 'frequency', 'Ordinary frequency'),
+            waveSpeed: variableMeta('Wave speed', 'velocity', 'Wave propagation speed'),
+            waveNumber1: variableMeta('Wave number 1', 'dimensionless', 'First wave number'),
+            waveNumber2: variableMeta('Wave number 2', 'dimensionless', 'Second wave number'),
+            angularFrequency1: variableMeta('Angular frequency 1', 'frequency', 'First angular frequency'),
+            angularFrequency2: variableMeta('Angular frequency 2', 'frequency', 'Second angular frequency'),
+            superposedPhaseVelocity: variableMeta('Superposed phase velocity', 'velocity', 'Carrier phase velocity'),
+            superposedGroupVelocity: variableMeta('Superposed group velocity', 'velocity', 'Envelope group velocity'),
+            mass: variableMeta('Mass', 'mass', 'Mass of the object or particle'),
+            positionUncertainty: variableMeta('Position uncertainty', 'length', 'Uncertainty in position'),
+            velocityUncertainty: variableMeta('Velocity uncertainty', 'velocity', 'Uncertainty in velocity'),
+            minKineticEnergy: variableMeta('Minimum kinetic energy', 'energy', 'Minimum kinetic energy from confinement'),
+            boxLength: variableMeta('Box length', 'length', 'One-dimensional box length'),
+            energyLevel: variableMeta('Energy level', 'energy', 'Energy of the chosen state'),
+            stateNumber: variableMeta('State number', 'dimensionless', 'Quantum number n'),
+            absorbedPhotonWavelength: variableMeta('Absorbed photon wavelength', 'length', 'Incoming photon wavelength'),
+            excitedState: variableMeta('Excited state', 'dimensionless', 'Upper state after absorption'),
+            initialState: variableMeta('Initial state', 'dimensionless', 'Initial energy state'),
+            finalState: variableMeta('Final state', 'dimensionless', 'Final state after emission'),
+            emittedPhotonWavelength: variableMeta('Emitted photon wavelength', 'length', 'Photon wavelength emitted in a transition'),
+            golfBallMass: variableMeta('Golf ball mass', 'mass', 'Mass of the golf ball'),
+            golfBallSpeed: variableMeta('Golf ball speed', 'velocity', 'Speed of the golf ball'),
+            approximateState: variableMeta('Approximate state number', 'dimensionless', 'Approximate n value from p = n h / 2L')
+        };
+
+        const relation = (output, inputs, label, compute) => ({ output, inputs, label, compute });
+
+        const PROBLEMS = [
+            problem('p1', 'Set 1', '1. Ion charge-to-mass from V, B, r',
+                'Positively charged ions accelerated through a potential and bent by a magnetic field. Solve for q/m or vary V, B, and r.',
+                ['potentialDifference', 'magneticField', 'pathRadius', 'chargeToMass'],
+                {
+                    potentialDifference: preset(472, 'V', true),
+                    magneticField: preset(5.00e-3, 'T', true),
+                    pathRadius: preset(8.00, 'cm', true)
+                },
+                ['chargeToMass', 'potentialDifference', 'magneticField', 'pathRadius'],
+                [
+                    relation('chargeToMass', ['potentialDifference', 'magneticField', 'pathRadius'], 'q/m = 2V / (B^2 r^2)', (v) => (2 * v.potentialDifference) / (v.magneticField * v.magneticField * v.pathRadius * v.pathRadius)),
+                    relation('potentialDifference', ['chargeToMass', 'magneticField', 'pathRadius'], 'V = (q/m) B^2 r^2 / 2', (v) => 0.5 * v.chargeToMass * v.magneticField * v.magneticField * v.pathRadius * v.pathRadius),
+                    relation('magneticField', ['potentialDifference', 'chargeToMass', 'pathRadius'], 'B = sqrt(2V / ((q/m) r^2))', (v) => Math.sqrt((2 * v.potentialDifference) / (v.chargeToMass * v.pathRadius * v.pathRadius))),
+                    relation('pathRadius', ['potentialDifference', 'chargeToMass', 'magneticField'], 'r = sqrt(2V / ((q/m) B^2))', (v) => Math.sqrt((2 * v.potentialDifference) / (v.chargeToMass * v.magneticField * v.magneticField)))
+                ]),
+            problem('p2', 'Set 1', '2. Velocity selector electric field',
+                'Solve the crossed-field condition E = vB for any one of the three variables.',
+                ['particleSpeed', 'magneticField', 'electricField'],
+                {
+                    particleSpeed: preset(3.40e6, 'm/s', true),
+                    magneticField: preset(5.00, 'T', true)
+                },
+                ['electricField', 'particleSpeed', 'magneticField'],
+                [
+                    relation('electricField', ['particleSpeed', 'magneticField'], 'E = vB', (v) => v.particleSpeed * v.magneticField),
+                    relation('particleSpeed', ['electricField', 'magneticField'], 'v = E / B', (v) => v.electricField / v.magneticField),
+                    relation('magneticField', ['electricField', 'particleSpeed'], 'B = E / v', (v) => v.electricField / v.particleSpeed)
+                ]),
+            problem('p3', 'Set 1', '3. Crossed-field electron beam lab',
+                'Includes electron speed after acceleration, plate voltage for straight-through motion, and electric-only vertical deflection at the end of the plates.',
+                ['acceleratingVoltage', 'magneticField', 'plateSeparation', 'plateLength', 'particleSpeed', 'electricField', 'plateVoltage', 'verticalDeflection'],
+                {
+                    acceleratingVoltage: preset(45.0, 'V', true),
+                    magneticField: preset(1.17e-4, 'T', true),
+                    plateSeparation: preset(5.00, 'mm', true),
+                    plateLength: preset(2.50, 'cm', true)
+                },
+                ['particleSpeed', 'electricField', 'plateVoltage', 'verticalDeflection'],
+                [
+                    relation('particleSpeed', ['acceleratingVoltage'], 'v = sqrt(2 e V / m_e)', (v) => Math.sqrt((2 * PHYSICS.e * v.acceleratingVoltage) / PHYSICS.me)),
+                    relation('electricField', ['particleSpeed', 'magneticField'], 'E = vB', (v) => v.particleSpeed * v.magneticField),
+                    relation('plateVoltage', ['electricField', 'plateSeparation'], 'V_plate = E d', (v) => v.electricField * v.plateSeparation),
+                    relation('electricField', ['plateVoltage', 'plateSeparation'], 'E = V_plate / d', (v) => v.plateVoltage / v.plateSeparation),
+                    relation('verticalDeflection', ['electricField', 'plateLength', 'particleSpeed'], 'y = e E L^2 / (2 m_e v^2)', (v) => (PHYSICS.e * v.electricField * v.plateLength * v.plateLength) / (2 * PHYSICS.me * v.particleSpeed * v.particleSpeed))
+                ]),
+            problem('p4', 'Set 1', '4. Small magnetic deflection angle',
+                'Approximates the angle using theta ~= qBL / (mv) for a short magnetic region.',
+                ['magneticField', 'magneticPathLength', 'particleSpeed', 'deflectionAngle'],
+                {
+                    magneticField: preset(2.00e-4, 'T', true),
+                    magneticPathLength: preset(1.00, 'cm', true),
+                    particleSpeed: preset(2.40e6, 'm/s', true)
+                },
+                ['deflectionAngle', 'magneticField', 'magneticPathLength', 'particleSpeed'],
+                [
+                    relation('deflectionAngle', ['magneticField', 'magneticPathLength', 'particleSpeed'], 'theta = eBL / (m_e v)', (v) => (PHYSICS.e * v.magneticField * v.magneticPathLength) / (PHYSICS.me * v.particleSpeed)),
+                    relation('particleSpeed', ['magneticField', 'magneticPathLength', 'deflectionAngle'], 'v = eBL / (m_e theta)', (v) => (PHYSICS.e * v.magneticField * v.magneticPathLength) / (PHYSICS.me * v.deflectionAngle))
+                ]),
+            problem('p5', 'Set 1', '5. Photoelectric maximum kinetic energy',
+                'Use K_max = hc/lambda - phi.',
+                ['wavelength', 'workFunction', 'maxKineticEnergy'],
+                {
+                    wavelength: preset(404, 'nm', true),
+                    workFunction: preset(2.35, 'eV', true)
+                },
+                ['maxKineticEnergy', 'workFunction', 'wavelength'],
+                photoelectricRelations()),
+            problem('p6', 'Set 1', '6. Photoelectric work function',
+                'Solve the photoelectric equation for the work function.',
+                ['wavelength', 'workFunction', 'maxKineticEnergy'],
+                {
+                    wavelength: preset(422, 'nm', true),
+                    maxKineticEnergy: preset(0.784, 'eV', true)
+                },
+                ['workFunction', 'maxKineticEnergy', 'wavelength'],
+                photoelectricRelations()),
+            problem('p7', 'Set 1', '7. Photoelectron maximum speed',
+                'Combines the photoelectric equation with K = 1/2 m v^2.',
+                ['wavelength', 'workFunction', 'maxKineticEnergy', 'particleSpeed'],
+                {
+                    wavelength: preset(81, 'nm', true),
+                    workFunction: preset(4.41, 'eV', true)
+                },
+                ['particleSpeed', 'maxKineticEnergy', 'workFunction'],
+                photoelectricRelations().concat([
+                    relation('particleSpeed', ['maxKineticEnergy'], 'v = sqrt(2K / m_e)', (v) => Math.sqrt((2 * v.maxKineticEnergy) / PHYSICS.me)),
+                    relation('maxKineticEnergy', ['particleSpeed'], 'K = 1/2 m_e v^2', (v) => 0.5 * PHYSICS.me * v.particleSpeed * v.particleSpeed)
+                ])),
+            problem('p8', 'Set 1', '8. Threshold wavelength from emitted electron speed',
+                'Derive the work function from the observed electron speed, then convert to threshold wavelength.',
+                ['wavelength', 'particleSpeed', 'maxKineticEnergy', 'workFunction', 'thresholdWavelength'],
+                {
+                    wavelength: preset(725, 'nm', true),
+                    particleSpeed: preset(0.0013, 'c', true)
+                },
+                ['thresholdWavelength', 'workFunction', 'maxKineticEnergy'],
+                photoelectricRelations().concat([
+                    relation('maxKineticEnergy', ['particleSpeed'], 'K = 1/2 m_e v^2', (v) => 0.5 * PHYSICS.me * v.particleSpeed * v.particleSpeed),
+                    relation('particleSpeed', ['maxKineticEnergy'], 'v = sqrt(2K / m_e)', (v) => Math.sqrt((2 * v.maxKineticEnergy) / PHYSICS.me)),
+                    relation('thresholdWavelength', ['workFunction'], 'lambda_0 = hc / phi', (v) => (PHYSICS.h * PHYSICS.c) / v.workFunction),
+                    relation('workFunction', ['thresholdWavelength'], 'phi = hc / lambda_0', (v) => (PHYSICS.h * PHYSICS.c) / v.thresholdWavelength)
+                ])),
+            problem('p9', 'Set 1', '9. Photoelectric charging of an isolated sphere',
+                'Electrons leave until the sphere potential equals the stopping potential: Q = 4 pi epsilon_0 R V_stop.',
+                ['wavelength', 'workFunction', 'maxKineticEnergy', 'sphereDiameter', 'sphereRadius', 'spherePotential', 'sphereCharge'],
+                {
+                    wavelength: preset(302, 'nm', true),
+                    workFunction: preset(3.68, 'eV', true),
+                    sphereDiameter: preset(17.2, 'cm', true)
+                },
+                ['sphereCharge', 'spherePotential', 'maxKineticEnergy'],
+                photoelectricRelations().concat([
+                    relation('sphereRadius', ['sphereDiameter'], 'R = D / 2', (v) => 0.5 * v.sphereDiameter),
+                    relation('spherePotential', ['maxKineticEnergy'], 'V_stop = K_max / e', (v) => v.maxKineticEnergy / PHYSICS.e),
+                    relation('sphereCharge', ['sphereRadius', 'spherePotential'], 'Q = 4 pi epsilon_0 R V', (v) => 4 * Math.PI * PHYSICS.epsilon0 * v.sphereRadius * v.spherePotential)
+                ])),
+            problem('p10', 'Set 1', '10. Momentum-based accelerating potential',
+                'Part (a) treats the x-ray photon with E = pc. Part (b) uses the relativistic electron kinetic energy from the target momentum.',
+                ['photonMomentum', 'photonPotentialForMomentum', 'electronPotentialForMomentum'],
+                {
+                    photonMomentum: preset(1.60, 'keV/c', true)
+                },
+                ['photonPotentialForMomentum', 'electronPotentialForMomentum'],
+                [
+                    relation('photonPotentialForMomentum', ['photonMomentum'], 'V_min = pc / e', (v) => (v.photonMomentum * PHYSICS.c) / PHYSICS.e),
+                    relation('electronPotentialForMomentum', ['photonMomentum'], 'V = (sqrt((pc)^2 + (m_e c^2)^2) - m_e c^2) / e', (v) => {
+                        const pc = v.photonMomentum * PHYSICS.c;
+                        return (Math.sqrt(pc * pc + Math.pow(PHYSICS.me * PHYSICS.c * PHYSICS.c, 2)) - PHYSICS.me * PHYSICS.c * PHYSICS.c) / PHYSICS.e;
+                    })
+                ]),
+            problem('p11', 'Set 1', '11. Compton scattering angle from an energy ratio',
+                'Uses lambda\' - lambda = lambda_C (1 - cos theta) and K_e = r E\'.',
+                ['incidentPhotonWavelength', 'energyRatio', 'scatteredPhotonWavelength', 'deflectionAngle'],
+                {
+                    incidentPhotonWavelength: preset(30.8e-4, 'nm', true),
+                    energyRatio: preset(0.77, '1', true)
+                },
+                ['deflectionAngle', 'scatteredPhotonWavelength'],
+                [
+                    relation('scatteredPhotonWavelength', ['incidentPhotonWavelength', 'energyRatio'], 'lambda\' = lambda (1 + r)', (v) => v.incidentPhotonWavelength * (1 + v.energyRatio)),
+                    relation('deflectionAngle', ['incidentPhotonWavelength', 'scatteredPhotonWavelength'], 'cos theta = 1 - (lambda\' - lambda) / lambda_C', (v) => {
+                        const lambdaC = PHYSICS.h / (PHYSICS.me * PHYSICS.c);
+                        const cosTheta = 1 - ((v.scatteredPhotonWavelength - v.incidentPhotonWavelength) / lambdaC);
+                        return Math.acos(clamp(cosTheta, -1, 1));
+                    })
+                ]),
+            problem('p12', 'Set 1', '12. Maximum Compton electron kinetic energy',
+                'Maximum transfer occurs for photon backscatter at 180 degrees.',
+                ['incidentPhotonWavelength', 'incidentPhotonEnergy', 'scatteredPhotonEnergy', 'maxKineticEnergy'],
+                {
+                    incidentPhotonWavelength: preset(4.260e-11, 'm', true)
+                },
+                ['maxKineticEnergy', 'incidentPhotonEnergy', 'scatteredPhotonEnergy'],
+                [
+                    relation('incidentPhotonEnergy', ['incidentPhotonWavelength'], 'E = hc / lambda', (v) => (PHYSICS.h * PHYSICS.c) / v.incidentPhotonWavelength),
+                    relation('scatteredPhotonEnergy', ['incidentPhotonEnergy'], 'E\' = E / (1 + 2E / (m_e c^2))', (v) => v.incidentPhotonEnergy / (1 + (2 * v.incidentPhotonEnergy) / (PHYSICS.me * PHYSICS.c * PHYSICS.c))),
+                    relation('maxKineticEnergy', ['incidentPhotonEnergy', 'scatteredPhotonEnergy'], 'K_max = E - E\'', (v) => v.incidentPhotonEnergy - v.scatteredPhotonEnergy)
+                ]),
+            problem('p13', 'Set 1', '13. Compton scattering with known gamma energy and angle',
+                'Solves for the scattered photon energy, recoil electron kinetic energy, and recoil angle.',
+                ['incidentPhotonEnergy', 'deflectionAngle', 'scatteredPhotonEnergy', 'scatteredElectronKineticEnergy', 'recoilAngle'],
+                {
+                    incidentPhotonEnergy: preset(700, 'keV', true),
+                    deflectionAngle: preset(115, 'deg', true)
+                },
+                ['scatteredPhotonEnergy', 'scatteredElectronKineticEnergy', 'recoilAngle'],
+                [
+                    relation('scatteredPhotonEnergy', ['incidentPhotonEnergy', 'deflectionAngle'], 'E\' = E / (1 + (E / m_e c^2)(1 - cos theta))', (v) => {
+                        const rest = PHYSICS.me * PHYSICS.c * PHYSICS.c;
+                        return v.incidentPhotonEnergy / (1 + (v.incidentPhotonEnergy / rest) * (1 - Math.cos(v.deflectionAngle)));
+                    }),
+                    relation('scatteredElectronKineticEnergy', ['incidentPhotonEnergy', 'scatteredPhotonEnergy'], 'K_e = E - E\'', (v) => v.incidentPhotonEnergy - v.scatteredPhotonEnergy),
+                    relation('recoilAngle', ['incidentPhotonEnergy', 'scatteredPhotonEnergy', 'deflectionAngle'], 'tan phi = (E\' sin theta) / (E - E\' cos theta)', (v) => Math.atan2(v.scatteredPhotonEnergy * Math.sin(v.deflectionAngle), v.incidentPhotonEnergy - v.scatteredPhotonEnergy * Math.cos(v.deflectionAngle)))
+                ]),
+            problem('p14', 'Set 1', '14. Pair production threshold with a free electron target',
+                'Uses the threshold formula for gamma + e- -> e- + e- + e+.',
+                ['pairProductionThreshold'],
+                {},
+                ['pairProductionThreshold'],
+                [
+                    relation('pairProductionThreshold', [], 'E_th = 4 m_e c^2', () => 4 * PHYSICS.me * PHYSICS.c * PHYSICS.c)
+                ]),
+            problem('p15', 'Set 1', '15. Pair production threshold with a free proton target',
+                'Uses the threshold formula for gamma + p -> p + e- + e+.',
+                ['pairProductionThreshold'],
+                {},
+                ['pairProductionThreshold'],
+                [
+                    relation('pairProductionThreshold', [], 'E_th = [((m_p + 2m_e)^2 - m_p^2)c^2] / (2m_p)', () => {
+                        const total = PHYSICS.mp + 2 * PHYSICS.me;
+                        return (((total * total) - (PHYSICS.mp * PHYSICS.mp)) * PHYSICS.c * PHYSICS.c) / (2 * PHYSICS.mp);
+                    })
+                ]),
+            problem('p16', 'Set 2', '16. Rutherford count between two angles',
+                'Uses the integrated Rutherford scaling N(>theta) proportional to cot^2(theta/2).',
+                ['referenceScatterCount', 'referenceAngle', 'scatterAngleMin', 'scatterAngleMax', 'scatterBandCount'],
+                {
+                    referenceScatterCount: preset(15000, 'count', true),
+                    referenceAngle: preset(50, 'deg', true),
+                    scatterAngleMin: preset(65, 'deg', true),
+                    scatterAngleMax: preset(70, 'deg', true)
+                },
+                ['scatterBandCount'],
+                [
+                    relation('scatterBandCount', ['referenceScatterCount', 'referenceAngle', 'scatterAngleMin', 'scatterAngleMax'], 'N(theta1 to theta2) = N_ref [cot^2(theta1/2) - cot^2(theta2/2)] / cot^2(theta_ref/2)', (v) => {
+                        const ref = cot(v.referenceAngle / 2);
+                        const min = cot(v.scatterAngleMin / 2);
+                        const max = cot(v.scatterAngleMax / 2);
+                        return v.referenceScatterCount * ((min * min) - (max * max)) / (ref * ref);
+                    })
+                ]),
+            problem('p17', 'Set 2', '17. Nuclear radius from area ratio',
+                'If area ratio = (r_nucleus / r_atom)^2, then r_nucleus = r_atom sqrt(ratio).',
+                ['areaRatio', 'atomRadius', 'nucleusRadius'],
+                {
+                    areaRatio: preset(2.85e-9, '1', true),
+                    atomRadius: preset(2.30e-10, 'm', true)
+                },
+                ['nucleusRadius'],
+                [
+                    relation('nucleusRadius', ['areaRatio', 'atomRadius'], 'r_n = r_a sqrt(A_n / A_a)', (v) => v.atomRadius * Math.sqrt(v.areaRatio)),
+                    relation('areaRatio', ['nucleusRadius', 'atomRadius'], 'A_n / A_a = (r_n / r_a)^2', (v) => Math.pow(v.nucleusRadius / v.atomRadius, 2))
+                ]),
+            problem('p18', 'Set 2', '18. Classical hydrogen atom crash time',
+                'Uses the Larmor power and circular-orbit Coulomb motion to integrate the inward spiral time from radius r0 to 0.',
+                ['orbitRadius', 'crashTime'],
+                {
+                    orbitRadius: preset(PHYSICS.a0, 'm', true)
+                },
+                ['crashTime'],
+                [
+                    relation('crashTime', ['orbitRadius'], 't = m_e^2 c^3 r0^3 / (4 k^2 e^4)', (v) => (PHYSICS.me * PHYSICS.me * Math.pow(PHYSICS.c, 3) * Math.pow(v.orbitRadius, 3)) / (4 * PHYSICS.k * PHYSICS.k * Math.pow(PHYSICS.e, 4)))
+                ]),
+            problem('p19', 'Set 2', '19. Hydrogen atom collision to n = 4',
+                'Each atom starts in the ground state and ends at rest in n = 4, so each initial kinetic energy equals one excitation energy.',
+                ['hydrogenMass', 'excitationEnergy', 'collisionSpeed'],
+                {
+                    hydrogenMass: preset(939, 'MeV/c^2', true),
+                    excitationEnergy: preset(PHYSICS.rydbergEV * (1 - 1 / 16), 'eV', true)
+                },
+                ['collisionSpeed', 'excitationEnergy'],
+                [
+                    relation('collisionSpeed', ['hydrogenMass', 'excitationEnergy'], 'v = sqrt(2 DeltaE / m)', (v) => Math.sqrt((2 * v.excitationEnergy) / v.hydrogenMass)),
+                    relation('excitationEnergy', [], 'DeltaE = 13.6 eV (1 - 1/16)', () => PHYSICS.rydbergEV * (1 - 1 / 16) * PHYSICS.e)
+                ]),
+            problem('p20', 'Set 2', '20. Bohr-model angular and linear momentum',
+                'Uses L = n hbar and p = m_e alpha c / n.',
+                ['principalQuantumNumber', 'angularMomentum', 'linearMomentum'],
+                {
+                    principalQuantumNumber: preset(9, '1', true)
+                },
+                ['angularMomentum', 'linearMomentum'],
+                [
+                    relation('angularMomentum', ['principalQuantumNumber'], 'L = n hbar', (v) => v.principalQuantumNumber * PHYSICS.hbar),
+                    relation('linearMomentum', ['principalQuantumNumber'], 'p = m_e alpha c / n', (v) => (PHYSICS.me * PHYSICS.alpha * PHYSICS.c) / v.principalQuantumNumber)
+                ]),
+            problem('p21', 'Set 2', '21. Bohr-model Coulomb force at n = 12',
+                'Uses r_n = a0 n^2 and F = k e^2 / r_n^2.',
+                ['principalQuantumNumber', 'orbitalForce'],
+                {
+                    principalQuantumNumber: preset(12, '1', true)
+                },
+                ['orbitalForce'],
+                [
+                    relation('orbitalForce', ['principalQuantumNumber'], 'F = k e^2 / (a0^2 n^4)', (v) => (PHYSICS.k * PHYSICS.e * PHYSICS.e) / (PHYSICS.a0 * PHYSICS.a0 * Math.pow(v.principalQuantumNumber, 4)))
+                ]),
+            problem('p22', 'Set 2', '22. Revolutions before decay from n = 3',
+                'Uses the Bohr orbital frequency f = alpha c / (2 pi a0 n^3).',
+                ['principalQuantumNumber', 'lifetime', 'revolutions'],
+                {
+                    principalQuantumNumber: preset(3, '1', true),
+                    lifetime: preset(5.57e-8, 's', true)
+                },
+                ['revolutions'],
+                [
+                    relation('revolutions', ['principalQuantumNumber', 'lifetime'], 'N = t alpha c / (2 pi a0 n^3)', (v) => (v.lifetime * PHYSICS.alpha * PHYSICS.c) / (2 * Math.PI * PHYSICS.a0 * Math.pow(v.principalQuantumNumber, 3)))
+                ]),
+            problem('p23', 'Set 2', '23. Moseley L_alpha frequency ratio',
+                'For the same line family, frequency scales as (Z_eff)^2. Here Z_eff = Z - 7.4.',
+                ['atomicNumber1', 'atomicNumber2', 'frequencyRatio'],
+                {
+                    atomicNumber1: preset(17, '1', true),
+                    atomicNumber2: preset(21, '1', true)
+                },
+                ['frequencyRatio'],
+                [
+                    relation('frequencyRatio', ['atomicNumber1', 'atomicNumber2'], 'ratio = (Z1 - 7.4)^2 / (Z2 - 7.4)^2', (v) => Math.pow(v.atomicNumber1 - 7.4, 2) / Math.pow(v.atomicNumber2 - 7.4, 2))
+                ]),
+            problem('p24', 'Set 2', '24. Maximum characteristic x-ray energy for silver',
+                'Approximate the K-shell binding energy with E_max ~= 13.6 eV (Z - 1)^2.',
+                ['atomicNumber', 'maxCharacteristicXrayEnergy'],
+                {
+                    atomicNumber: preset(47, '1', true)
+                },
+                ['maxCharacteristicXrayEnergy'],
+                [
+                    relation('maxCharacteristicXrayEnergy', ['atomicNumber'], 'E_max ~= 13.6 eV (Z - 1)^2', (v) => PHYSICS.rydbergEV * Math.pow(v.atomicNumber - 1, 2) * PHYSICS.e)
+                ]),
+            problem('p25', 'Set 3', '25. Photon wavelength and energy from momentum',
+                'Uses lambda = h/p and E = pc.',
+                ['photonMomentum', 'wavelength', 'photonEnergy'],
+                {
+                    photonMomentum: preset(7.08e-21, 'kg*m/s', true)
+                },
+                ['wavelength', 'photonEnergy'],
+                [
+                    relation('wavelength', ['photonMomentum'], 'lambda = h / p', (v) => PHYSICS.h / v.photonMomentum),
+                    relation('photonEnergy', ['photonMomentum'], 'E = pc', (v) => v.photonMomentum * PHYSICS.c)
+                ]),
+            problem('p26', 'Set 3', '26. Photon/electron energy comparison at equal momentum',
+                'Treats the electron energy as nonrelativistic kinetic energy: K_e = p^2 / 2m.',
+                ['wavelength', 'photonEnergy', 'electronKineticEnergy', 'energyComparisonRatio'],
+                {
+                    wavelength: preset(62.3, 'nm', true)
+                },
+                ['energyComparisonRatio', 'photonEnergy', 'electronKineticEnergy'],
+                [
+                    relation('photonEnergy', ['wavelength'], 'E_gamma = hc / lambda', (v) => (PHYSICS.h * PHYSICS.c) / v.wavelength),
+                    relation('electronKineticEnergy', ['wavelength'], 'K_e = h^2 / (2 m_e lambda^2)', (v) => (PHYSICS.h * PHYSICS.h) / (2 * PHYSICS.me * v.wavelength * v.wavelength)),
+                    relation('energyComparisonRatio', ['photonEnergy', 'electronKineticEnergy'], 'ratio = E_gamma / K_e', (v) => v.photonEnergy / v.electronKineticEnergy)
+                ]),
+            problem('p27', 'Set 3', '27. Electron velocity from de Broglie wavelength',
+                'Uses the nonrelativistic relation lambda = h / (m v).',
+                ['deBroglieWavelength', 'particleSpeed'],
+                {
+                    deBroglieWavelength: preset(2.26, 'm', true)
+                },
+                ['particleSpeed'],
+                [
+                    relation('particleSpeed', ['deBroglieWavelength'], 'v = h / (m_e lambda)', (v) => PHYSICS.h / (PHYSICS.me * v.deBroglieWavelength)),
+                    relation('deBroglieWavelength', ['particleSpeed'], 'lambda = h / (m_e v)', (v) => PHYSICS.h / (PHYSICS.me * v.particleSpeed))
+                ]),
+            problem('p28', 'Set 3', '28. Nonrelativistic electron from kinetic energy',
+                'Find lambda, speed, phase velocity, and group velocity from the kinetic energy.',
+                ['electronKineticEnergy', 'deBroglieWavelength', 'particleSpeed', 'phaseVelocity', 'groupVelocity'],
+                {
+                    electronKineticEnergy: preset(60.2, 'eV', true)
+                },
+                ['deBroglieWavelength', 'particleSpeed', 'phaseVelocity', 'groupVelocity'],
+                [
+                    relation('particleSpeed', ['electronKineticEnergy'], 'v = sqrt(2K / m_e)', (v) => Math.sqrt((2 * v.electronKineticEnergy) / PHYSICS.me)),
+                    relation('deBroglieWavelength', ['electronKineticEnergy'], 'lambda = h / sqrt(2 m_e K)', (v) => PHYSICS.h / Math.sqrt(2 * PHYSICS.me * v.electronKineticEnergy)),
+                    relation('groupVelocity', ['particleSpeed'], 'v_g = v', (v) => v.particleSpeed),
+                    relation('phaseVelocity', ['particleSpeed'], 'v_p = v / 2', (v) => 0.5 * v.particleSpeed)
+                ]),
+            problem('p29', 'Set 3', '29. Wave properties from Psi(x, t)',
+                'For Psi = A sin(kx - wt), lambda = 2pi/k, f = w / 2pi, and v = w/k.',
+                ['waveNumber', 'angularFrequency', 'wavelength', 'waveFrequency', 'waveSpeed'],
+                {
+                    waveNumber: preset(2.75, '1', true),
+                    angularFrequency: preset(9.42, 'Hz', true)
+                },
+                ['wavelength', 'waveFrequency', 'waveSpeed'],
+                [
+                    relation('wavelength', ['waveNumber'], 'lambda = 2 pi / k', (v) => (2 * Math.PI) / v.waveNumber),
+                    relation('waveFrequency', ['angularFrequency'], 'f = omega / 2 pi', (v) => v.angularFrequency / (2 * Math.PI)),
+                    relation('waveSpeed', ['angularFrequency', 'waveNumber'], 'v = omega / k', (v) => v.angularFrequency / v.waveNumber)
+                ]),
+            problem('p30', 'Set 3', '30. Phase and group velocities for two superposed waves',
+                'Uses the trig-identity form of the superposition: v_phase = (w1 + w2)/(k1 + k2) and v_group = (w1 - w2)/(k1 - k2).',
+                ['waveNumber1', 'waveNumber2', 'angularFrequency1', 'angularFrequency2', 'superposedPhaseVelocity', 'superposedGroupVelocity'],
+                {
+                    waveNumber1: preset(5.81, '1', true),
+                    waveNumber2: preset(4.81, '1', true),
+                    angularFrequency1: preset(302, 'Hz', true),
+                    angularFrequency2: preset(252, 'Hz', true)
+                },
+                ['superposedPhaseVelocity', 'superposedGroupVelocity'],
+                [
+                    relation('superposedPhaseVelocity', ['waveNumber1', 'waveNumber2', 'angularFrequency1', 'angularFrequency2'], 'v_p = (omega1 + omega2) / (k1 + k2)', (v) => (v.angularFrequency1 + v.angularFrequency2) / (v.waveNumber1 + v.waveNumber2)),
+                    relation('superposedGroupVelocity', ['waveNumber1', 'waveNumber2', 'angularFrequency1', 'angularFrequency2'], 'v_g = (omega1 - omega2) / (k1 - k2)', (v) => (v.angularFrequency1 - v.angularFrequency2) / (v.waveNumber1 - v.waveNumber2))
+                ]),
+            problem('p31', 'Set 3', '31. Velocity uncertainty of a satellite',
+                'Uses Heisenberg: Delta x Delta p >= hbar / 2.',
+                ['mass', 'positionUncertainty', 'velocityUncertainty'],
+                {
+                    mass: preset(1271, 'kg', true),
+                    positionUncertainty: preset(10, 'm', true)
+                },
+                ['velocityUncertainty'],
+                uncertaintyRelations()),
+            problem('p32', 'Set 3', '32. Minimum neutron kinetic energy from confinement',
+                'Estimate Delta p ~= hbar / (2 Delta x), then K_min = (Delta p)^2 / 2m.',
+                ['mass', 'positionUncertainty', 'velocityUncertainty', 'minKineticEnergy'],
+                {
+                    mass: preset(PHYSICS.mn, 'kg', true),
+                    positionUncertainty: preset(4.05e-15, 'm', true)
+                },
+                ['minKineticEnergy', 'velocityUncertainty'],
+                uncertaintyRelations().concat([
+                    relation('minKineticEnergy', ['mass', 'positionUncertainty'], 'K_min = hbar^2 / (8 m Delta x^2)', (v) => (PHYSICS.hbar * PHYSICS.hbar) / (8 * v.mass * v.positionUncertainty * v.positionUncertainty))
+                ])),
+            problem('p33', 'Set 3', '33. Minimum electron velocity uncertainty in a 1D box',
+                'Uses Delta v >= hbar / (2 m Delta x) with Delta x approximated by the box length.',
+                ['mass', 'positionUncertainty', 'velocityUncertainty'],
+                {
+                    mass: preset(PHYSICS.me, 'kg', true),
+                    positionUncertainty: preset(2.95, 'nm', true)
+                },
+                ['velocityUncertainty'],
+                uncertaintyRelations()),
+            problem('p34', 'Set 3', '34. Particle in a one-dimensional box',
+                'Uses E_n = n^2 h^2 / (8 m L^2) and v_n = n h / (2 m L).',
+                ['energyLevel', 'stateNumber', 'boxLength', 'particleSpeed'],
+                {
+                    energyLevel: preset(3.35, 'eV', true),
+                    stateNumber: preset(5, '1', true)
+                },
+                ['boxLength', 'particleSpeed'],
+                [
+                    relation('boxLength', ['energyLevel', 'stateNumber'], 'L = n h / sqrt(8 m_e E_n)', (v) => (v.stateNumber * PHYSICS.h) / Math.sqrt(8 * PHYSICS.me * v.energyLevel)),
+                    relation('particleSpeed', ['boxLength'], 'v_ground = h / (2 m_e L)', (v) => PHYSICS.h / (2 * PHYSICS.me * v.boxLength))
+                ]),
+            problem('p35', 'Set 3', '35. Emitted wavelength after a box-state transition',
+                'With equal box energy spacing scale, hc/lambda_abs = (n_u^2 - n_i^2) E1 and hc/lambda_emit = (n_u^2 - n_f^2) E1.',
+                ['absorbedPhotonWavelength', 'initialState', 'excitedState', 'finalState', 'emittedPhotonWavelength'],
+                {
+                    absorbedPhotonWavelength: preset(5.10, 'nm', true),
+                    initialState: preset(1, '1', true),
+                    excitedState: preset(8, '1', true),
+                    finalState: preset(3, '1', true)
+                },
+                ['emittedPhotonWavelength'],
+                [
+                    relation('emittedPhotonWavelength', ['absorbedPhotonWavelength', 'initialState', 'excitedState', 'finalState'], 'lambda_emit = lambda_abs (n_u^2 - n_i^2) / (n_u^2 - n_f^2)', (v) => {
+                        const rise = (v.excitedState * v.excitedState) - (v.initialState * v.initialState);
+                        const fall = (v.excitedState * v.excitedState) - (v.finalState * v.finalState);
+                        return v.absorbedPhotonWavelength * rise / fall;
+                    })
+                ]),
+            problem('p36', 'Set 3', '36. Golf ball as a particle in a box',
+                'Uses p = m v = n h / (2L) to estimate the enormous quantum number.',
+                ['golfBallMass', 'boxLength', 'golfBallSpeed', 'approximateState'],
+                {
+                    golfBallMass: preset(0.046, 'kg', true),
+                    boxLength: preset(280, 'm', true),
+                    golfBallSpeed: preset(74.0, 'm/s', true)
+                },
+                ['approximateState'],
+                [
+                    relation('approximateState', ['golfBallMass', 'boxLength', 'golfBallSpeed'], 'n ~= 2mLv / h', (v) => (2 * v.golfBallMass * v.boxLength * v.golfBallSpeed) / PHYSICS.h)
+                ])
+        ];
+
+        const problemMap = Object.fromEntries(PROBLEMS.map((problem) => [problem.id, problem]));
+
+        const state = {
+            problemId: PROBLEMS[0].id,
+            inputs: {},
+            targetId: null,
+            targetUnit: null,
+            lastSolve: null
+        };
+
+        const problemSelect = document.getElementById('problemSelect');
+        const targetSelect = document.getElementById('targetSelect');
+        const targetUnitSelect = document.getElementById('targetUnitSelect');
+        const inputGrid = document.getElementById('inputGrid');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const stepsBox = document.getElementById('stepsBox');
+        const statusBox = document.getElementById('statusBox');
+        const problemStatement = document.getElementById('problemStatement');
+        const setBadge = document.getElementById('setBadge');
+        const targetBadge = document.getElementById('targetBadge');
+        const problemCount = document.getElementById('problemCount');
+
+        init();
+
+        function init() {
+            problemCount.textContent = String(PROBLEMS.length);
+            populateProblemSelect();
+            problemSelect.addEventListener('change', () => loadProblem(problemSelect.value));
+            targetSelect.addEventListener('change', () => {
+                state.targetId = targetSelect.value;
+                populateTargetUnits();
+                renderTargetBadge();
+            });
+            targetUnitSelect.addEventListener('change', () => {
+                state.targetUnit = targetUnitSelect.value;
+                renderResults();
+            });
+            document.getElementById('restoreButton').addEventListener('click', () => loadProblem(state.problemId));
+            document.getElementById('clearButton').addEventListener('click', clearActiveInputs);
+            document.getElementById('solveButton').addEventListener('click', solveCurrentProblem);
+            loadProblem(PROBLEMS[0].id);
+        }
+
+        function populateProblemSelect() {
+            problemSelect.innerHTML = '';
+            PROBLEMS.forEach((problem) => {
+                const option = document.createElement('option');
+                option.value = problem.id;
+                option.textContent = `${problem.set} - ${problem.title}`;
+                problemSelect.appendChild(option);
+            });
+        }
+
+        function loadProblem(problemId) {
+            const problem = problemMap[problemId];
+            state.problemId = problemId;
+            state.inputs = buildInputState(problem);
+            state.targetId = problem.targets[0] || null;
+            problemSelect.value = problemId;
+            problemStatement.textContent = problem.statement;
+            setBadge.textContent = problem.set;
+            populateTargetSelect(problem);
+            populateTargetUnits();
+            renderInputs(problem);
+            renderTargetBadge();
+            state.lastSolve = null;
+            resultsGrid.innerHTML = '';
+            stepsBox.innerHTML = '';
+            statusBox.className = 'info-callout';
+            statusBox.textContent = 'Preset restored. Adjust givens or click solve to compute the selected target.';
+        }
+
+        function populateTargetSelect(problem) {
+            targetSelect.innerHTML = '';
+            problem.targets.forEach((targetId) => {
+                const option = document.createElement('option');
+                option.value = targetId;
+                option.textContent = VARIABLES[targetId].label;
+                targetSelect.appendChild(option);
+            });
+            targetSelect.value = state.targetId;
+        }
+
+        function populateTargetUnits() {
+            const targetMeta = VARIABLES[state.targetId];
+            const dimension = DIMENSIONS[targetMeta.dimension];
+            targetUnitSelect.innerHTML = '';
+            Object.keys(dimension.units).forEach((unitName) => {
+                const option = document.createElement('option');
+                option.value = unitName;
+                option.textContent = unitName;
+                targetUnitSelect.appendChild(option);
+            });
+            const current = state.inputs[state.targetId];
+            state.targetUnit = (current && current.unit) || targetMeta.defaultUnit || dimension.baseUnit;
+            if (!dimension.units[state.targetUnit]) {
+                state.targetUnit = dimension.baseUnit;
+            }
+            targetUnitSelect.value = state.targetUnit;
+        }
+
+        function buildInputState(problem) {
+            const inputs = {};
+            problem.variables.forEach((variableId) => {
+                const meta = VARIABLES[variableId];
+                const presetValue = problem.defaults[variableId] || preset('', meta.defaultUnit, false);
+                inputs[variableId] = {
+                    value: presetValue.value,
+                    unit: presetValue.unit || meta.defaultUnit,
+                    active: Boolean(presetValue.given)
+                };
+            });
+            return inputs;
+        }
+
+        function renderInputs(problem) {
+            inputGrid.innerHTML = '';
+            problem.variables.forEach((variableId) => {
+                const meta = VARIABLES[variableId];
+                const inputState = state.inputs[variableId];
+                const row = document.createElement('div');
+                row.className = `input-row ${inputState.active ? '' : 'disabled'}`;
+
+                const nameWrap = document.createElement('div');
+                nameWrap.className = 'field-meta';
+                nameWrap.innerHTML = `
+                    <label class="toggle-wrap">
+                        <input type="checkbox" ${inputState.active ? 'checked' : ''} data-role="toggle" data-id="${variableId}">
+                        <span>
+                            <div class="field-name">${meta.label}</div>
+                            <div class="field-desc">${meta.description}</div>
+                        </span>
+                    </label>
+                `;
+
+                const valueInput = document.createElement('input');
+                valueInput.type = 'number';
+                valueInput.step = 'any';
+                valueInput.placeholder = 'Value';
+                valueInput.value = inputState.value;
+                valueInput.disabled = !inputState.active;
+                valueInput.dataset.role = 'value';
+                valueInput.dataset.id = variableId;
+
+                const unitSelect = document.createElement('select');
+                unitSelect.disabled = !inputState.active;
+                unitSelect.dataset.role = 'unit';
+                unitSelect.dataset.id = variableId;
+                getUnitsFor(variableId).forEach((unitName) => {
+                    const option = document.createElement('option');
+                    option.value = unitName;
+                    option.textContent = unitName;
+                    unitSelect.appendChild(option);
+                });
+                unitSelect.value = inputState.unit;
+
+                row.appendChild(nameWrap);
+                row.appendChild(valueInput);
+                row.appendChild(unitSelect);
+                inputGrid.appendChild(row);
+            });
+
+            inputGrid.querySelectorAll('[data-role="toggle"]').forEach((checkbox) => {
+                checkbox.addEventListener('change', onInputToggle);
+            });
+            inputGrid.querySelectorAll('[data-role="value"]').forEach((input) => {
+                input.addEventListener('input', onInputValueChange);
+            });
+            inputGrid.querySelectorAll('[data-role="unit"]').forEach((select) => {
+                select.addEventListener('change', onInputUnitChange);
+            });
+        }
+
+        function onInputToggle(event) {
+            const variableId = event.target.dataset.id;
+            state.inputs[variableId].active = event.target.checked;
+            renderInputs(problemMap[state.problemId]);
+        }
+
+        function onInputValueChange(event) {
+            const variableId = event.target.dataset.id;
+            state.inputs[variableId].value = event.target.value;
+        }
+
+        function onInputUnitChange(event) {
+            const variableId = event.target.dataset.id;
+            state.inputs[variableId].unit = event.target.value;
+            if (variableId === state.targetId) {
+                populateTargetUnits();
+            }
+        }
+
+        function clearActiveInputs() {
+            Object.entries(state.inputs).forEach(([variableId, inputState]) => {
+                if (inputState.active && variableId !== state.targetId) {
+                    inputState.value = '';
+                }
+            });
+            renderInputs(problemMap[state.problemId]);
+            state.lastSolve = null;
+            resultsGrid.innerHTML = '';
+            stepsBox.innerHTML = '';
+            statusBox.className = 'info-callout';
+            statusBox.textContent = 'Active inputs cleared. Restore the preset if you want the original givens back.';
+        }
+
+        function solveCurrentProblem() {
+            const problem = problemMap[state.problemId];
+            const converted = {};
+            const invalid = [];
+
+            problem.variables.forEach((variableId) => {
+                const inputState = state.inputs[variableId];
+                if (!inputState.active) {
+                    return;
+                }
+                if (inputState.value === '' || inputState.value === null) {
+                    return;
+                }
+                const numericValue = Number(inputState.value);
+                if (!Number.isFinite(numericValue)) {
+                    invalid.push(VARIABLES[variableId].label);
+                    return;
+                }
+                converted[variableId] = toBase(variableId, numericValue, inputState.unit);
+            });
+
+            if (invalid.length > 0) {
+                state.lastSolve = null;
+                renderErrors(`Invalid numeric input for: ${invalid.join(', ')}`);
+                return;
+            }
+
+            const solved = runSolver(problem, converted);
+            state.lastSolve = solved;
+            renderResults();
+        }
+
+        function runSolver(problem, initialValues) {
+            const values = { ...initialValues };
+            const steps = {};
+            const sequence = [];
+            let changed = true;
+            let guard = 0;
+
+            while (changed && guard < 20) {
+                changed = false;
+                guard += 1;
+
+                for (const formula of problem.formulas) {
+                    if (Object.prototype.hasOwnProperty.call(values, formula.output)) {
+                        continue;
+                    }
+
+                    const allInputsPresent = formula.inputs.every((inputId) => Object.prototype.hasOwnProperty.call(values, inputId));
+                    if (!allInputsPresent) {
+                        continue;
+                    }
+
+                    let outputValue;
+                    try {
+                        outputValue = formula.compute(values);
+                    } catch (error) {
+                        continue;
+                    }
+
+                    if (!Number.isFinite(outputValue)) {
+                        continue;
+                    }
+
+                    values[formula.output] = outputValue;
+                    const formulaInputs = formula.inputs.map((inputId) => `${VARIABLES[inputId].label} = ${formatForDisplay(inputId, values[inputId], preferredUnit(inputId))}`);
+                    steps[formula.output] = {
+                        label: formula.label,
+                        inputs: formulaInputs
+                    };
+                    sequence.push(formula.output);
+                    changed = true;
+                }
+            }
+
+            return { values, steps, sequence };
+        }
+
+        function renderResults() {
+            resultsGrid.innerHTML = '';
+            stepsBox.innerHTML = '';
+            renderTargetBadge();
+
+            if (!state.lastSolve) {
+                return;
+            }
+
+            const problem = problemMap[state.problemId];
+            const { values, steps } = state.lastSolve;
+            const targetValue = values[state.targetId];
+
+            if (!Number.isFinite(targetValue)) {
+                renderErrors('The selected target could not be derived from the active inputs for this preset. Toggle on more givens or restore the original preset values.');
+                return;
+            }
+
+            statusBox.className = 'info-callout';
+            statusBox.textContent = `Solved ${VARIABLES[state.targetId].label}. Additional reachable variables for this preset are listed below.`;
+
+            problem.targets.forEach((variableId) => {
+                if (!Number.isFinite(values[variableId])) {
+                    return;
+                }
+
+                const unit = variableId === state.targetId ? state.targetUnit : preferredUnit(variableId);
+                const value = formatForDisplay(variableId, values[variableId], unit);
+                const card = document.createElement('div');
+                card.className = `result-card ${variableId === state.targetId ? 'target' : ''}`;
+                card.innerHTML = `
+                    <div class="name">${VARIABLES[variableId].label}</div>
+                    <div class="value">${value}</div>
+                    <div class="badge">${steps[variableId] ? 'Derived' : 'Given or direct'}</div>
+                `;
+                resultsGrid.appendChild(card);
+            });
+
+            const targetStepChain = buildStepChain(state.targetId, steps);
+            if (targetStepChain.length === 0) {
+                const step = document.createElement('div');
+                step.className = 'step';
+                step.innerHTML = `<strong>${VARIABLES[state.targetId].label}</strong><span>Target value was supplied directly as an active given.</span>`;
+                stepsBox.appendChild(step);
+            } else {
+                targetStepChain.forEach((item) => {
+                    const step = document.createElement('div');
+                    step.className = 'step';
+                    step.innerHTML = `<strong>${VARIABLES[item.output].label}</strong><span>${item.label}<br>${item.inputs.join('<br>')}</span>`;
+                    stepsBox.appendChild(step);
+                });
+            }
+        }
+
+        function buildStepChain(targetId, steps, visited = new Set()) {
+            if (!steps[targetId] || visited.has(targetId)) {
+                return [];
+            }
+            visited.add(targetId);
+            return [{ output: targetId, ...steps[targetId] }];
+        }
+
+        function renderErrors(message) {
+            resultsGrid.innerHTML = '';
+            stepsBox.innerHTML = '';
+            statusBox.className = 'error-callout';
+            statusBox.textContent = message;
+        }
+
+        function renderTargetBadge() {
+            targetBadge.textContent = `Target: ${state.targetId ? VARIABLES[state.targetId].label : '--'}`;
+        }
+
+        function preferredUnit(variableId) {
+            const inputState = state.inputs[variableId];
+            if (inputState && inputState.unit) {
+                return inputState.unit;
+            }
+            return VARIABLES[variableId].defaultUnit;
+        }
+
+        function getUnitsFor(variableId) {
+            return Object.keys(DIMENSIONS[VARIABLES[variableId].dimension].units);
+        }
+
+        function toBase(variableId, value, unit) {
+            const dimension = DIMENSIONS[VARIABLES[variableId].dimension];
+            return dimension.units[unit].toBase(value);
+        }
+
+        function fromBase(variableId, value, unit) {
+            const dimension = DIMENSIONS[VARIABLES[variableId].dimension];
+            return dimension.units[unit].fromBase(value);
+        }
+
+        function formatForDisplay(variableId, baseValue, unit) {
+            const displayValue = fromBase(variableId, baseValue, unit);
+            return `${formatNumber(displayValue)} ${unit}`.trim();
+        }
+
+        function formatNumber(value) {
+            const abs = Math.abs(value);
+            if (abs === 0) {
+                return '0';
+            }
+            if (abs >= 1e5 || abs < 1e-3) {
+                return value.toExponential(6);
+            }
+            return Number(value.toPrecision(8)).toString();
+        }
+
+        function factorUnit(factor) {
+            return {
+                toBase: (value) => value * factor,
+                fromBase: (value) => value / factor
+            };
+        }
+
+        function variableMeta(label, dimension, description) {
+            return {
+                label,
+                dimension,
+                description,
+                defaultUnit: DIMENSIONS[dimension].baseUnit
+            };
+        }
+
+        function preset(value, unit, given) {
+            return { value, unit, given };
+        }
+
+        function problem(id, set, title, statement, variables, defaults, targets, formulas) {
+            return { id, set, title, statement, variables, defaults, targets, formulas };
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function cot(value) {
+            return 1 / Math.tan(value);
+        }
+
+        function photoelectricRelations() {
+            return [
+                relation('maxKineticEnergy', ['wavelength', 'workFunction'], 'K_max = hc / lambda - phi', (v) => ((PHYSICS.h * PHYSICS.c) / v.wavelength) - v.workFunction),
+                relation('workFunction', ['wavelength', 'maxKineticEnergy'], 'phi = hc / lambda - K_max', (v) => ((PHYSICS.h * PHYSICS.c) / v.wavelength) - v.maxKineticEnergy),
+                relation('wavelength', ['workFunction', 'maxKineticEnergy'], 'lambda = hc / (phi + K_max)', (v) => (PHYSICS.h * PHYSICS.c) / (v.workFunction + v.maxKineticEnergy))
+            ];
+        }
+
+        function uncertaintyRelations() {
+            return [
+                relation('velocityUncertainty', ['mass', 'positionUncertainty'], 'Delta v = hbar / (2 m Delta x)', (v) => PHYSICS.hbar / (2 * v.mass * v.positionUncertainty)),
+                relation('positionUncertainty', ['mass', 'velocityUncertainty'], 'Delta x = hbar / (2 m Delta v)', (v) => PHYSICS.hbar / (2 * v.mass * v.velocityUncertainty))
+            ];
+        }
+    </script>
+</body>
+</html>
